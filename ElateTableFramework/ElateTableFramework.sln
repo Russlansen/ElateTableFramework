@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2010
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ElateTableFramework", "ElateTableFramework\ElateTableFramework.csproj", "{82B97A18-6F62-4DB3-9DFC-A12CDAD02F92}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestApplication", "TestApplication\TestApplication.csproj", "{936BF178-778B-4290-8A45-32E84E4CB207}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{82B97A18-6F62-4DB3-9DFC-A12CDAD02F92}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82B97A18-6F62-4DB3-9DFC-A12CDAD02F92}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82B97A18-6F62-4DB3-9DFC-A12CDAD02F92}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82B97A18-6F62-4DB3-9DFC-A12CDAD02F92}.Release|Any CPU.Build.0 = Release|Any CPU
+		{936BF178-778B-4290-8A45-32E84E4CB207}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{936BF178-778B-4290-8A45-32E84E4CB207}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{936BF178-778B-4290-8A45-32E84E4CB207}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{936BF178-778B-4290-8A45-32E84E4CB207}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0F9A9ED4-31AC-4227-87FF-C18C597506FC}
+	EndGlobalSection
+EndGlobal
