@@ -1,6 +1,8 @@
 ﻿@using ElateTableFramework
+@using TestApplication.Models
+@model IEnumerable<User>
 @{
     ViewBag.Title = "Index";
 }
+@Html.ElateTable(Model)
 
-@Html.ElateTable()

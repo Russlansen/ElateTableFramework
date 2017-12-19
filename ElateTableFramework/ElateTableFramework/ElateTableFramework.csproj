@@ -61,6 +61,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\ElateExcludePropertyAttribute.cs" />
+    <Compile Include="Attributes\ElateMergeAttribute.cs" />
+    <Compile Include="Attributes\ElatePropertyRenameAttribute.cs" />
     <Compile Include="TableHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
