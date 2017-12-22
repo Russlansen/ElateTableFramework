@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ElateTableFramework.Configuration;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -9,25 +10,100 @@ namespace TestApplication.Controllers
 {
     public class HomeController : Controller
     {
-        public ActionResult Index()
+        public ActionResult Index(int page = 1)
         {
-            var user = new User()
+            var listUsers = new List<User>();
+            var listAutos = new List<Auto>();
+            for (int i = 0; i < 100; i++)
             {
-                Id = 1,
-                Name = "User",
-                LastName = "QWERT",
-                Age = 25
+                listAutos.Add(new Auto()
+                {
+                    Id = i + 1,
+                    Model = "qwe",
+                    Color = "wrwer", 
+                    Engine = "sdfsdfsdf",
+                    Price = "ffdh",
+                    Year = "dshg"
+                });
+            }
+            var list = new List<Auto>();
+            for (int q = 5*(page-1); q < 5*(page-1) + 5; q++)
+            {
+                if (q >= listAutos.Count) break;
+                list.Add(listAutos[q]);
+            }
+
+            ViewData["options2"] = SetOptions();
+            ViewData["options"] = SetOptions2(page);
+
+            return View(list);
+        }
+
+        private TableConfiguration SetOptions()
+        {
+            TableConfiguration options = new TableConfiguration()
+            {
+                Rename = new Dictionary<string, string>()
+                {
+                    { "Name", "Имя" },
+                    { "LastName", "Фамилия" },
+                    { "Age", "Возраст" }
+                },
+                SetClass = new Dictionary<Tag, string>()
+                {
+                    { Tag.Table, "table" },
+                    { Tag.THead, "text-center" },
+                    { Tag.Td, "text-center" },
+                    { Tag.THeadTr, ""}
+                },
             };
 
-            var user2 = new User()
+            return options;
+        }
+
+        private TableConfiguration SetOptions2(int page)
+        {
+            TableConfiguration options = new TableConfiguration()
             {
-                Id = 2,
-                Name = "User2",
-                LastName = "QWEWRT2",
-                Age = 23
+                Rename = new Dictionary<string, string>()
+                {
+
+                    { "Model", "Модель" },
+                    { "Engine", "Двигатель" },
+                    { "Year", "Год" }
+                },
+                //Merge = new Dictionary<string, string[]>
+                //{
+                //    { "Color & Id", new string[]{ "Id","Color", "Year" } },
+                //},
+                //ColumnOrder = new Dictionary<string, int>()
+                //{
+                //    { "Color & Id", 10 },
+                //    { "Год", -1 }
+                //},
+                ColorScheme = ColorScheme.Default,
+                SetClass = new Dictionary<Tag, string>()
+                {
+                    { Tag.Table, "table table-bordered" },
+                },
+                PaginationConfig = new PaginationConfig()
+                {
+                    MaxItemsInPage = 5,
+                    Offset = 5*(page-1),
+                    TotalListLength = 100,
+                    TotalPagesMax = 7
+                },
+                RowsHighlight = true,
+                ColumnWidthInPercent = new Dictionary<string, byte>()
+                {
+                    { "Модель", 30 },
+                    { "Двигатель", 5 },
+                    { "Color & Id", 10 }
+                },
+                MessageForEmptyTable = "Пустая таблица"
             };
 
-            return View(new List<User>() { user, user2 });
+            return options;
         }
     }
 }

@@ -35,6 +35,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Web" />
     <Reference Include="System.Web.Helpers, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.3\lib\net45\System.Web.Helpers.dll</HintPath>
     </Reference>
@@ -64,6 +65,8 @@
     <Compile Include="Attributes\ElateExcludePropertyAttribute.cs" />
     <Compile Include="Attributes\ElateMergeAttribute.cs" />
     <Compile Include="Attributes\ElatePropertyRenameAttribute.cs" />
+    <Compile Include="Configuration\PaginationConfig.cs" />
+    <Compile Include="Configuration\TableConfiguration.cs" />
     <Compile Include="TableHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
