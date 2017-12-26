@@ -10,11 +10,9 @@
     font-weight: bold;
 }
 
-.elate-main-tbody {
-}
-
 .elate-main-thead-td {
     padding: 5px;
+    cursor:pointer;
 }
 
 .elate-main-td {
@@ -27,13 +25,21 @@
     box-shadow: inset 0 0 6px rgba(0,0,0,0.7);
 }
 
-.sortingLinks{
-    position:relative;
-    float:right;
+.sorting-links {
+    position: relative;
+    float: right;
+}
+
+.sort-arrow {
+    color:white;  
 }
 /************ PAGINATION ******************/
 .pager-main {
     text-decoration: none;
+}
+
+.elate-main-table tbody tr[data-pager="true"] {
+    background-color: transparent !important;
 }
 
     .pager-main a {
@@ -47,8 +53,7 @@
 
     .pager-main a div.page-item {
         transition: all 1s linear;
-        height: 27px;
-        width: 40px;
+        padding: 4px 15px;
         border-radius: 2.5px;     
         color: #ffffff;
         text-align: center;
@@ -62,23 +67,11 @@
             color: #ffffff;
         }
 
-    .pager-main a div.page-item[data-arrow] {
-        height: 27px;
-        width: 27px;
-    }
-
 @media (max-width: 960px) {
     .pager-main a div.page-item {
-        height: 55px;
-        width: 65px;
         margin: 2px;
-        padding-top: 2px;
         font-size: 21pt;
     }
-        .pager-main a div.page-item[data-arrow] {
-            height: 55px;
-            width: 55px;
-        }
 }
 
 /*
@@ -112,7 +105,6 @@ table[data-scheme="Default"][data-rows-highlight="true"] td.elate-main-td:hover 
 /*PAGER*/
 table[data-scheme="Default"] tr div.pager-main a div.page-item {
     background-color: #9a9898;
-    ;
 }
 
     table[data-scheme="Default"] tr div.pager-main a div.page-item:hover {
@@ -256,6 +248,11 @@ table[data-scheme="Light"][data-rows-highlight="true"] td.elate-main-td:hover {
     transition: all 0.3s linear;
     background-color: #d3d3d3;
 }
+
+table[data-scheme="Light"] i.sort-arrow {
+    color: black;
+}
+
 /*PAGER*/
 table[data-scheme="Light"] tr div.pager-main a div.page-item {
     background-color: #cccfc1;

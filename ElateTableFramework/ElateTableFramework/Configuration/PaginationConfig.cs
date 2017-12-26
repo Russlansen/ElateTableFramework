@@ -16,6 +16,10 @@ namespace ElateTableFramework.Configuration
 
         public int Offset { get; set; }
 
+        public string CallbackAction { get; set; }
+
+        public string CallbackController { get; set; }
+
         public PaginationConfig()
         {
             MaxItemsInPage = 10;

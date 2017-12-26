@@ -1,7 +1,9 @@
-﻿using ElateTableFramework.Configuration;
+﻿using ElateTableFramework;
+using ElateTableFramework.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 using TestApplication.Models;
@@ -33,35 +35,39 @@ namespace TestApplication.Controllers
                 list.Add(listAutos[q]);
             }
 
-            ViewData["options2"] = SetOptions();
-            ViewData["options"] = SetOptions2(page);
+            ViewData["options"] = SetOptions(page);
 
             return View(list);
         }
 
-        private TableConfiguration SetOptions()
+        public HtmlString PaginationAsync(AjaxPaginationConfig config)
         {
-            TableConfiguration options = new TableConfiguration()
+            var listAutos = new List<Auto>();
+            for (int i = 0; i < 100; i++)
             {
-                Rename = new Dictionary<string, string>()
+                listAutos.Add(new Auto()
                 {
-                    { "Name", "Имя" },
-                    { "LastName", "Фамилия" },
-                    { "Age", "Возраст" }
-                },
-                SetClass = new Dictionary<Tag, string>()
-                {
-                    { Tag.Table, "table" },
-                    { Tag.THead, "text-center" },
-                    { Tag.Td, "text-center" },
-                    { Tag.THeadTr, ""}
-                },
-            };
+                    Id = i + 1,
+                    Model = "qwe",
+                    Color = "wrwer",
+                    Engine = "sdfsdfsdf",
+                    Price = "ffdh",
+                    Year = "dshg"
+                });
+            }
+            var list = new List<Auto>();
+            for (int q = 5 * (config.Page - 1); q < 5 * (config.Page - 1) + 5; q++)
+            {
+                if (q >= listAutos.Count) break;
+                list.Add(listAutos[q]);
+            }
+            
+            var test = TableHelper.ElateGetTableBody(list, SetOptions(config.Page));
 
-            return options;
+            return new HtmlString(test.ToHtmlString());
         }
 
-        private TableConfiguration SetOptions2(int page)
+        private TableConfiguration SetOptions(int page)
         {
             TableConfiguration options = new TableConfiguration()
             {
@@ -74,7 +80,7 @@ namespace TestApplication.Controllers
                 },
                 //Merge = new Dictionary<string, string[]>
                 //{
-                //    { "Color & Id", new string[]{ "Id","Color", "Year" } },
+                //    { "Color & Id", new string[]{ "Color", "Id", "Year" } },
                 //},
                 //ColumnOrder = new Dictionary<string, int>()
                 //{
@@ -91,13 +97,15 @@ namespace TestApplication.Controllers
                     MaxItemsInPage = 5,
                     Offset = 5*(page-1),
                     TotalListLength = 100,
-                    TotalPagesMax = 7
+                    TotalPagesMax = 7,
+                    CallbackController = "Home",
+                    CallbackAction = "PaginationAsync",
                 },
                 RowsHighlight = true,
                 ColumnWidthInPercent = new Dictionary<string, byte>()
                 {
                     { "Модель", 30 },
-                    { "Двигатель", 5 },
+                    { "Двигатель", 20 },
                     { "Color & Id", 10 }
                 },
                 MessageForEmptyTable = "Пустая таблица"
