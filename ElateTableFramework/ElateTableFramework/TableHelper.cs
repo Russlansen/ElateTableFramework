@@ -67,19 +67,37 @@ namespace ElateTableFramework
 
             TagBuilder trHead = new TagBuilder("tr");
             trHead.MergeAttribute("class", SetAttribute(Tag.THeadTr));
-            var headers = new List<string>();
+            var headersAndTypes = new Dictionary<string, string>();
             var excludedBecauseOfMerge = new List<string>();
             bool isMerged = _config.Merge != null;
             foreach (var property in properties)
             {
+                var propertyType = property.PropertyType;
+
+                var isNumber = propertyType == typeof(float)  ||
+                               propertyType == typeof(double) || 
+                               propertyType == typeof(byte)   ||
+                               propertyType == typeof(int)    ||
+                               propertyType == typeof(long);
+
+                string type = "string";
+                if (isNumber)
+                {
+                    type = "number";
+                }
+                else if(propertyType == typeof(DateTime))
+                {
+                    type = "date-time";
+                }
+
                 if (_config.Excluded != null && _config.Excluded.Contains(property.Name)) continue;
                 if (isMerged)
                 {
                     foreach (var item in _config.Merge)
                     {
-                        if (item.Value.Contains(property.Name) && !headers.Contains(item.Key))
+                        if (item.Value.Contains(property.Name) && !headersAndTypes.ContainsKey(item.Key))
                         {
-                            headers.Add(item.Key);
+                            headersAndTypes.Add(item.Key, type);
                             excludedBecauseOfMerge.AddRange(item.Value);
                             break;
                         }
@@ -88,24 +106,25 @@ namespace ElateTableFramework
                 if (_config.Rename != null && _config.Rename.ContainsKey(property.Name)
                                             && !excludedBecauseOfMerge.Contains(property.Name))
                 {
-                    headers.Add(_config.Rename[property.Name]);
+                    headersAndTypes.Add(_config.Rename[property.Name], type);
                 }
                 else if (!excludedBecauseOfMerge.Contains(property.Name))
                 {
-                    headers.Add(property.Name);
+                    headersAndTypes.Add(property.Name, type);
                 }
             }
-            var sortedHeaders = SortByOrder(headers);
+            var sortedHeaders = SortByOrder(headersAndTypes.Keys.ToList());
             _totalColumnCount = sortedHeaders.Count();
             foreach (var field in sortedHeaders)
             {
                 TagBuilder td = new TagBuilder("td");
                 td.MergeAttribute("class", SetAttribute(Tag.THeadTd));
+                td.MergeAttribute("data-column-type", headersAndTypes[field]);
 
                 if (_config.ColumnWidthInPercent.ContainsKey(field))
                 {
                     int percent = _config.ColumnWidthInPercent[field];
-                    td.MergeAttribute("style", "width:" + percent + "%");
+                    td.MergeAttribute("style", "max-width:" + percent + "%;width:" + percent + "%");
                 }
 
                 if(_config.Merge != null && _config.Merge.ContainsKey(field))
@@ -125,6 +144,8 @@ namespace ElateTableFramework
                 td.InnerHtml += "<span>" + field + "</span>";
                 td.InnerHtml += "<a style='display:none' data-sort='down' class='sorting-links'><i class='fa fa-sort-desc sort-arrow' aria-hidden='true'></i>";
                 td.InnerHtml += "<a style='display:none; top:7px;' data-sort='up' class='sorting-links'><i class='fa fa-sort-asc sort-arrow' aria-hidden='true'></i></a>";
+                td.InnerHtml += "<i class='fa fa-filter filter-button' aria-hidden='true'></i>";
+                td.InnerHtml += "<input style='display:none' class='form-control filter-input'/>";
                 trHead.InnerHtml += td;
             }
             thead.InnerHtml += trHead;
@@ -176,15 +197,10 @@ namespace ElateTableFramework
                     }
                     if (!excludedBecauseOfMerge.Contains(property.Name))
                     {
-                        if (_config.Rename.ContainsKey(property.Name))
-                        {
-                            cells.Add(_config.Rename[property.Name], property.GetValue(entity).ToString());
-                        }
-                        else
-                        {
-                            cells.Add(property.Name, property.GetValue(entity).ToString());
-                        }
-
+                        string value = GetFormatedValue(property.GetValue(entity), property.Name);
+                        bool isContainKey = _config.Rename.ContainsKey(property.Name);
+                        string fieldName = isContainKey ? _config.Rename[property.Name] : property.Name;
+                        cells.Add(fieldName, value);
                     }
                 }
                 var sortedHeaders = SortByOrder(cells.Keys.ToList());
@@ -242,8 +258,13 @@ namespace ElateTableFramework
 
             if (currentPage > 1)
             {
-                div.InnerHtml += @"<a href='1'><div data-arrow='left' class='page-item'><<</div></a>";
-                div.InnerHtml += @"<a href='" + (currentPage - 1) + "'><div data-arrow='left' class='page-item'><</div></a>";
+                div.InnerHtml += @"<a href='1'><div data-arrow='left' class='page-item'><i class='fa fa-angle-double-left' aria-hidden='true'></i></div></a>";
+                div.InnerHtml += @"<a href='" + (currentPage - 1) + "'><div data-arrow='left' class='page-item'><i class='fa fa-angle-left' aria-hidden='true'></i></div></a>";
+            }
+            else
+            {
+                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'><i class='fa fa-angle-double-left' aria-hidden='true'></i></div>";
+                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'><i class='fa fa-angle-left' aria-hidden='true'></i></div>";
             }
             foreach (var page in pagesArray)
             {
@@ -261,8 +282,12 @@ namespace ElateTableFramework
             }
             if (currentPage < totalPages)
             {
-                div.InnerHtml += @"<a href='" + (currentPage + 1) + "'><div data-arrow='right' class='page-item'>></div></a>";
-                div.InnerHtml += @"<a href='" + totalPages + "'><div data-arrow='right' class='page-item'>>></div></a>";
+                div.InnerHtml += @"<a href='" + (currentPage + 1) + "'><div data-arrow='right' class='page-item'><i class='fa fa-angle-right' aria-hidden='true'></i></div></a>";
+                div.InnerHtml += @"<a href='" + totalPages + "'><div data-arrow='right' class='page-item'><i class='fa fa-angle-double-right' aria-hidden='true'></i></div></a>";
+            }else if (currentPage == totalPages)
+            {
+                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'><i class='fa fa-angle-right' aria-hidden='true'></i></div>";
+                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'><i class='fa fa-angle-double-right' aria-hidden='true'></i></div>";
             }
             td.InnerHtml = div.ToString();
             tr.InnerHtml = td.ToString();
@@ -406,6 +431,34 @@ namespace ElateTableFramework
             }
             
             return classBuilder.ToString();
+        }
+
+        private static string GetFormatedValue(object entity, string fieldName)
+        {
+            if (_config.ColumnFormat == null || !_config.ColumnFormat.ContainsKey(fieldName))
+            {
+                return entity.ToString();
+            }
+
+            var isNumber = entity.GetType() == typeof(float) ||
+                           entity.GetType() == typeof(double) ||
+                           entity.GetType() == typeof(byte) ||
+                           entity.GetType() == typeof(int) ||
+                           entity.GetType() == typeof(long);
+
+            var format = _config.ColumnFormat[fieldName];
+            if (entity is DateTime)
+            {
+                var date = (DateTime)entity;
+                return date.ToString(format);
+            }
+            else if (isNumber)
+            {
+                var number = Convert.ToDouble(entity);
+                return number.ToString(format);
+            }
+
+            return entity.ToString();
         }
     }
 }

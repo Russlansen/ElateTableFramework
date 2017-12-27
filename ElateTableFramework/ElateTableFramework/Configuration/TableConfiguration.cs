@@ -17,6 +17,8 @@ namespace ElateTableFramework.Configuration
 
         public Dictionary<string, int> ColumnOrder { get; set; }
 
+        public Dictionary<string, string> ColumnFormat { get; set; }
+
         public Dictionary<string, byte> ColumnWidthInPercent { get; set; }
 
         public PaginationConfig PaginationConfig { get; set; }

@@ -14,5 +14,7 @@ namespace TestApplication.Models
         public string Color { get; set; }
         public string Price { get; set; }
 
+        public DateTime Date { get; set; }
+
     }
 }

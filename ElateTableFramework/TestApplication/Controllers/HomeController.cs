@@ -25,11 +25,12 @@ namespace TestApplication.Controllers
                     Color = "wrwer", 
                     Engine = "sdfsdfsdf",
                     Price = "ffdh",
-                    Year = "dshg"
+                    Year = "dshg",
+                    Date = DateTime.Now
                 });
             }
             var list = new List<Auto>();
-            for (int q = 5*(page-1); q < 5*(page-1) + 5; q++)
+            for (int q = 20*(page-1); q < 20*(page-1) + 20; q++)
             {
                 if (q >= listAutos.Count) break;
                 list.Add(listAutos[q]);
@@ -40,7 +41,7 @@ namespace TestApplication.Controllers
             return View(list);
         }
 
-        public HtmlString PaginationAsync(AjaxPaginationConfig config)
+        public HtmlString PaginationAsync(AjaxPaginationConfig config, Dictionary<string, string[]> Field)
         {
             var listAutos = new List<Auto>();
             for (int i = 0; i < 100; i++)
@@ -52,14 +53,31 @@ namespace TestApplication.Controllers
                     Color = "wrwer",
                     Engine = "sdfsdfsdf",
                     Price = "ffdh",
-                    Year = "dshg"
+                    Year = "dshg",
+                    Date = DateTime.Now
                 });
             }
             var list = new List<Auto>();
-            for (int q = 5 * (config.Page - 1); q < 5 * (config.Page - 1) + 5; q++)
+
+            var orderedNumbers = new List<Auto>();
+
+            if (config.OrderType == "DESC")
             {
-                if (q >= listAutos.Count) break;
-                list.Add(listAutos[q]);
+                orderedNumbers = (from i in listAutos
+                                  orderby i.Id descending
+                                  select i).ToList();
+            }
+            else
+            {
+                orderedNumbers = (from i in listAutos
+                                  orderby i.Id ascending
+                                  select i).ToList();
+            }
+
+            for (int q = 20 * (config.Page - 1); q < 20 * (config.Page - 1) + 20; q++)
+            {
+                if (q >= orderedNumbers.Count) break;
+                list.Add(orderedNumbers[q]);
             }
             
             var test = TableHelper.ElateGetTableBody(list, SetOptions(config.Page));
@@ -94,8 +112,8 @@ namespace TestApplication.Controllers
                 },
                 PaginationConfig = new PaginationConfig()
                 {
-                    MaxItemsInPage = 5,
-                    Offset = 5*(page-1),
+                    MaxItemsInPage = 20,
+                    Offset = 20*(page-1),
                     TotalListLength = 100,
                     TotalPagesMax = 7,
                     CallbackController = "Home",
@@ -106,9 +124,14 @@ namespace TestApplication.Controllers
                 {
                     { "Модель", 30 },
                     { "Двигатель", 20 },
-                    { "Color & Id", 10 }
+                    { "Id", 10 }
                 },
-                MessageForEmptyTable = "Пустая таблица"
+                MessageForEmptyTable = "Пустая таблица",
+                ColumnFormat = new Dictionary<string, string>()
+                {
+                    { "Date","MM.dd.yyyy"},
+                    { "Id","0.00$"}
+                }
             };
 
             return options;

@@ -28,10 +28,24 @@
 .sorting-links {
     position: relative;
     float: right;
+    right:30px;
 }
 
 .sort-arrow {
     color:white;  
+}
+
+.filter-button,
+.close-filter-button {
+    position: relative;
+    float: right;
+    z-index: 1000;
+}
+
+.filter-input {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 5px;
 }
 /************ PAGINATION ******************/
 .pager-main {
@@ -51,15 +65,16 @@
             text-decoration: none;
         }
 
-    .pager-main a div.page-item {
-        transition: all 1s linear;
-        padding: 4px 15px;
-        border-radius: 2.5px;     
-        color: #ffffff;
-        text-align: center;
-        margin: 1px;
-        box-shadow: inset 0 0 3px rgba(0,0,0,0.7);
-    }
+        .pager-main a div.page-item,
+         div.disabled-page-item {
+            transition: all 1s linear;
+            padding: 4px 15px;
+            border-radius: 2.5px;
+            color: #ffffff;
+            text-align: center;
+            margin: 1px;
+            box-shadow: inset 0 0 3px rgba(0,0,0,0.7);
+        }
 
         .pager-main a div.page-item:hover {
             transition: all 0.2s linear;
@@ -67,12 +82,40 @@
             color: #ffffff;
         }
 
+div.disabled-page-item {
+    display: inline-block;
+    background-color: #000;
+    opacity: 0.2;
+}
+
+/*
+    ***************** BEGIN MEDIA *********************
+*/
+
 @media (max-width: 960px) {
-    .pager-main a div.page-item {
+    .pager-main a div.page-item,
+     div.disabled-page-item {
         margin: 2px;
         font-size: 21pt;
     }
+
+    .sorting-links {
+        position:absolute;
+        visibility: hidden;
+    }  
 }
+
+@media (max-width: 650px){
+    .filter-button,
+    .close-filter-button {
+        display: inline-block;
+        width: 100%;
+    } 
+}
+
+/*
+    ***************** END MEDIA *********************
+*/
 
 /*
     *****************SCHEMAS*********************
