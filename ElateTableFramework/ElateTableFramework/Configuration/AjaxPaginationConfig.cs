@@ -12,5 +12,7 @@ namespace ElateTableFramework.Configuration
         public string OrderByField { get; set; }
 
         public string OrderType { get; set; }
+
+        public Dictionary<string, string[]> Filters { get; set; }
     }
 }

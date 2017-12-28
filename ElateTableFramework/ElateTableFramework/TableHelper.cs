@@ -70,6 +70,7 @@ namespace ElateTableFramework
             var headersAndTypes = new Dictionary<string, string>();
             var excludedBecauseOfMerge = new List<string>();
             bool isMerged = _config.Merge != null;
+            
             foreach (var property in properties)
             {
                 var propertyType = property.PropertyType;
@@ -143,8 +144,24 @@ namespace ElateTableFramework
 
                 td.InnerHtml += "<span>" + field + "</span>";
                 td.InnerHtml += "<a style='display:none' data-sort='down' class='sorting-links'><i class='fa fa-sort-desc sort-arrow' aria-hidden='true'></i>";
-                td.InnerHtml += "<a style='display:none; top:7px;' data-sort='up' class='sorting-links'><i class='fa fa-sort-asc sort-arrow' aria-hidden='true'></i></a>";
+                td.InnerHtml += "<a style='display:none; top:0px' data-sort='up' class='sorting-links'><i class='fa fa-sort-asc sort-arrow' aria-hidden='true'></i></a>";
                 td.InnerHtml += "<i class='fa fa-filter filter-button' aria-hidden='true'></i>";
+                switch (headersAndTypes[field].ToLower())
+                {
+                    case "number":
+                        {
+                            td.InnerHtml += @"<select style='display:none' class='form-control filter-select'/>
+                                                  <option data-type='equal' selected>Equal</option>
+                                                  <option data-type='range'>Range</option>
+                                              </select>";
+                            break;
+                        }
+                    case "date-time":
+                        {
+                            break;
+                        }
+                }
+                
                 td.InnerHtml += "<input style='display:none' class='form-control filter-input'/>";
                 trHead.InnerHtml += td;
             }

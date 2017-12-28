@@ -41,7 +41,7 @@ namespace TestApplication.Controllers
             return View(list);
         }
 
-        public HtmlString PaginationAsync(AjaxPaginationConfig config, Dictionary<string, string[]> Field)
+        public HtmlString PaginationAsync(AjaxPaginationConfig config)
         {
             var listAutos = new List<Auto>();
             for (int i = 0; i < 100; i++)
@@ -130,7 +130,6 @@ namespace TestApplication.Controllers
                 ColumnFormat = new Dictionary<string, string>()
                 {
                     { "Date","MM.dd.yyyy"},
-                    { "Id","0.00$"}
                 }
             };
 

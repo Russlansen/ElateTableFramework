@@ -29,6 +29,7 @@
     position: relative;
     float: right;
     right:30px;
+    top:-7px;
 }
 
 .sort-arrow {
@@ -46,6 +47,15 @@
     width: 100%;
     max-width: 100%;
     margin-top: 5px;
+}
+
+.range-container {
+    margin-top: 5px;
+} 
+
+.filter-range {
+    display: inline-block;
+    width: 50%;
 }
 /************ PAGINATION ******************/
 .pager-main {
