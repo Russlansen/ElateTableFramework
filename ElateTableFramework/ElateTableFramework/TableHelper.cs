@@ -146,23 +146,38 @@ namespace ElateTableFramework
                 td.InnerHtml += "<a style='display:none' data-sort='down' class='sorting-links'><i class='fa fa-sort-desc sort-arrow' aria-hidden='true'></i>";
                 td.InnerHtml += "<a style='display:none; top:0px' data-sort='up' class='sorting-links'><i class='fa fa-sort-asc sort-arrow' aria-hidden='true'></i></a>";
                 td.InnerHtml += "<i class='fa fa-filter filter-button' aria-hidden='true'></i>";
+
+                var selectorHtml = @"<select style='display:none' class='form-control filter-select'/>
+                                         <option data-type='equal' selected>Equal</option>
+                                         <option data-type='range'>Range</option>
+                                     </select>";
+
                 switch (headersAndTypes[field].ToLower())
                 {
                     case "number":
                         {
-                            td.InnerHtml += @"<select style='display:none' class='form-control filter-select'/>
-                                                  <option data-type='equal' selected>Equal</option>
-                                                  <option data-type='range'>Range</option>
-                                              </select>";
+                            td.InnerHtml += selectorHtml;
+                            td.InnerHtml += "<input style='display:none' class='form-control filter-input'/>";
                             break;
                         }
                     case "date-time":
                         {
+                            td.InnerHtml += selectorHtml;
+                            td.InnerHtml += @"<div style='display:none' class='input-group date filter-date-container' id='datetimepicker'>
+                                                <input id='datepicker-date' style='border:0px;max-width: 100%;' type='text' class='form-control filter-input' />
+                                                <span id='datepicker-open' style='border:0px;margin-left:1px' class='input-group-addon calendar-btn'>
+                                                    <i class='fa fa-calendar' aria-hidden='true'></i>
+                                                </span>
+                                             </div>";
+                            break;
+                        }
+                    default:
+                        {
+                            td.InnerHtml += "<input style='display:none;' class='form-control filter-input'/>";
                             break;
                         }
                 }
-                
-                td.InnerHtml += "<input style='display:none' class='form-control filter-input'/>";
+
                 trHead.InnerHtml += td;
             }
             thead.InnerHtml += trHead;

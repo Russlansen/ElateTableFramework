@@ -36,6 +36,20 @@
     color:white;  
 }
 
+.calendar-btn {
+    border-top-right-radius: .25rem;
+    border-bottom-right-radius: .25rem;
+}
+
+#datepicker-date {
+    padding: 8px;
+}
+
+.input-group {
+    width: 100%;
+    max-width: 100%;
+}
+/******************* FILTERS *****************/
 .filter-button,
 .close-filter-button {
     position: relative;
@@ -46,16 +60,26 @@
 .filter-input {
     width: 100%;
     max-width: 100%;
-    margin-top: 5px;
+}
+
+.filter-date-container {
+    margin-top: 1px;
 }
 
 .range-container {
-    margin-top: 5px;
-} 
+    
+}
+
+.filter-select {
+    max-width: 100%;
+}
 
 .filter-range {
-    display: inline-block;
+    display: inline-flex;
     width: 50%;
+}
+div.filter-range {
+    padding: 1px;
 }
 /************ PAGINATION ******************/
 .pager-main {
@@ -112,7 +136,13 @@ div.disabled-page-item {
     .sorting-links {
         position:absolute;
         visibility: hidden;
-    }  
+    }
+
+    .filter-range {
+        display: inline-flex;
+        width: 100%;
+        margin:2px;
+    }
 }
 
 @media (max-width: 650px){
@@ -120,7 +150,7 @@ div.disabled-page-item {
     .close-filter-button {
         display: inline-block;
         width: 100%;
-    } 
+    }  
 }
 
 /*

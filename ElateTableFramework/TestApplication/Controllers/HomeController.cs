@@ -1,9 +1,9 @@
 ﻿using ElateTableFramework;
 using ElateTableFramework.Configuration;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 using TestApplication.Models;
@@ -14,78 +14,25 @@ namespace TestApplication.Controllers
     {
         public ActionResult Index(int page = 1)
         {
-            var listUsers = new List<User>();
-            var listAutos = new List<Auto>();
-            for (int i = 0; i < 100; i++)
-            {
-                listAutos.Add(new Auto()
-                {
-                    Id = i + 1,
-                    Model = "qwe",
-                    Color = "wrwer", 
-                    Engine = "sdfsdfsdf",
-                    Price = "ffdh",
-                    Year = "dshg",
-                    Date = DateTime.Now
-                });
-            }
-            var list = new List<Auto>();
-            for (int q = 20*(page-1); q < 20*(page-1) + 20; q++)
-            {
-                if (q >= listAutos.Count) break;
-                list.Add(listAutos[q]);
-            }
-
-            ViewData["options"] = SetOptions(page);
+            var repos = new AutoRepository();
+            var count = 0;
+            var list = repos.GetUsersPagination("Id", "DESC", page, new PaginationConfig() { MaxItemsInPage = 20 }, out count);
+            ViewData["options"] = SetOptions(count, page);
 
             return View(list);
         }
 
         public HtmlString PaginationAsync(AjaxPaginationConfig config)
         {
-            var listAutos = new List<Auto>();
-            for (int i = 0; i < 100; i++)
-            {
-                listAutos.Add(new Auto()
-                {
-                    Id = i + 1,
-                    Model = "qwe",
-                    Color = "wrwer",
-                    Engine = "sdfsdfsdf",
-                    Price = "ffdh",
-                    Year = "dshg",
-                    Date = DateTime.Now
-                });
-            }
-            var list = new List<Auto>();
-
-            var orderedNumbers = new List<Auto>();
-
-            if (config.OrderType == "DESC")
-            {
-                orderedNumbers = (from i in listAutos
-                                  orderby i.Id descending
-                                  select i).ToList();
-            }
-            else
-            {
-                orderedNumbers = (from i in listAutos
-                                  orderby i.Id ascending
-                                  select i).ToList();
-            }
-
-            for (int q = 20 * (config.Page - 1); q < 20 * (config.Page - 1) + 20; q++)
-            {
-                if (q >= orderedNumbers.Count) break;
-                list.Add(orderedNumbers[q]);
-            }
-            
-            var test = TableHelper.ElateGetTableBody(list, SetOptions(config.Page));
+            var repos = new AutoRepository();
+            var count = 0;
+            var list = repos.GetUsersPagination(config.OrderByField, config.OrderType, config.Page, new PaginationConfig() { MaxItemsInPage = 20, Offset = 20 * (config.Page - 1) }, out count);
+            var test = TableHelper.ElateGetTableBody(list, SetOptions(count, config.Page));
 
             return new HtmlString(test.ToHtmlString());
         }
 
-        private TableConfiguration SetOptions(int page)
+        private TableConfiguration SetOptions(int listLength, int page)
         {
             TableConfiguration options = new TableConfiguration()
             {
@@ -114,8 +61,8 @@ namespace TestApplication.Controllers
                 {
                     MaxItemsInPage = 20,
                     Offset = 20*(page-1),
-                    TotalListLength = 100,
-                    TotalPagesMax = 7,
+                    TotalListLength = listLength,
+                    TotalPagesMax = 5,
                     CallbackController = "Home",
                     CallbackAction = "PaginationAsync",
                 },
