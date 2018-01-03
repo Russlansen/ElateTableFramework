@@ -16,13 +16,20 @@ namespace ElateTableFramework.Configuration
 
         public int Offset { get; set; }
 
-        public string CallbackAction { get; set; }
+        public int Page { get; set; }
 
-        public string CallbackController { get; set; }
+        public string OrderByField { get; set; }
 
-        public PaginationConfig()
+        public string OrderType { get; set; }
+
+        public Dictionary<string, string> Filters { get; set; }
+
+        public PaginationConfig() { }
+
+        public PaginationConfig(int maxItemsInPage = 10, int page = 0)
         {
-            MaxItemsInPage = 10;
+            MaxItemsInPage = maxItemsInPage;
+            Offset = maxItemsInPage * (page - 1);
         }
     }
 }

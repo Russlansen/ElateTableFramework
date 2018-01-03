@@ -1,5 +1,7 @@
 ﻿using Dapper;
 using ElateTableFramework.Configuration;
+using ElateTableFramework;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -23,17 +25,12 @@ namespace TestApplication.Models
             return auto;
         }
 
-        public List<Auto> GetUsersPagination(string orderBy, string orderType, int page, PaginationConfig config, out int count)
+        public IEnumerable<Auto> GetUsersPagination(PaginationConfig config, out int count)
         {
-            var queryString = $"SELECT * FROM Autos ORDER BY {orderBy} {orderType} OFFSET " +
-                              $"{config.Offset}" +
-                              $" ROWS FETCH NEXT {config.MaxItemsInPage} ROWS ONLY";
             using (IDbConnection db = new SqlConnection(connectionString))
             {
-                count = db.Query<int>($"SELECT COUNT (*) FROM Autos").FirstOrDefault();
-                return db.Query<Auto>(queryString).ToList();
-            }
-                
+                return db.GetPagination<Auto>(config, out count);
+            }       
         }
         
     }

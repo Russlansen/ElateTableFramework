@@ -1,6 +1,8 @@
 ﻿var orderType = "ASC";
 var orderByField = "";
 var filteringFields = {};
+var dateFormat = "DD.MM.YYYY";
+var windowMinWidth = 650;
 
 $(function () {
     var headers = $("table thead tr td");
@@ -9,20 +11,19 @@ $(function () {
     var filterInput = headers.find(".filter-input");
     var filterSelect = headers.find(".filter-select");
     orderByField = headers.first().data("original-field-name");
-
+    //dateFormat = "column-format"
     headers.click(switchArrows);
     filter.click(function (event) { getFilters(event, true); });
     headers.click(function (event) { getTableBodyAjax(event, true, false); });
     pager.click(function (event) { getTableBodyAjax(event, false, false); });
     filterInput.keyup(function (event) { getTableBodyAjax(event, false, true); });
-    filterSelect.change(selectFilterType)
+    filterSelect.change(selectFilterType);
     setDatepickerEvents();
 });
 
 function getTableBodyAjax(event, isSorting, isFiltering) {
     event.preventDefault();
     var target = $(event.target);
-
     if ((target.hasClass("filter-input")  ||
          target.hasClass("filter-select") ||
          target.closest("div").hasClass("range-container") ||
@@ -31,27 +32,31 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         return;
     }
     var table = target.closest('table');
+    var tbody = table.children('tbody');
     var link = target.closest('a');  
     var columnType = target.closest("td").data("column-type");
     var currentPage = table.find("tr[data-pager='true']").data("current-page");
     var fieldName = target.closest("td").data("original-field-name");
     var filterData = [];
-
+    var min = "";
+    var max = "";
     if (columnType === "date-time") {
         var container = target.closest('div.range-container');
         if (container.hasClass("range-container")) {
-            var min = container.find(".range-min").val();
-            var max = container.find(".range-max").val();
+            min = parseDate(container.find(".range-min").val(), true);
+            max = parseDate(container.find(".range-max").val(), false);
             filterData = [min, max];
         } else if (target.hasClass("filter-date-container")) {
-            filterData = [target.children('.filter-input').val()];
+            min = parseDate(target.find('.filter-input').val(), true);
+            max = parseDate(target.find('.filter-input').val(), false);
+            filterData = [min, max];
         }
 
     } else {
         var div = target.closest("div");
         if (div.hasClass("range-container")) {
-            var min = div.find(".range-min").val();
-            var max = div.find(".range-max").val();
+            min = div.find(".range-min").val();
+            max = div.find(".range-max").val();
             if (min === "" && max === "") return;
             filterData = [min, max];
         } else if (target.hasClass("filter-input")) {
@@ -63,13 +68,15 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         Page: "",
         OrderByField: orderByField,
         OrderType: orderType,
-        Filters: filteringFields
+        Filters: filteringFields,
+        Offset: 1,
+        MaxItemsInPage: tbody.data('max-items'),
+        TotalPagesMax: tbody.find("[data-pager=true]").data("max-pages")
     };
-
     if (isFiltering) {
         Data.Page = currentPage;
         filteringFields[fieldName] = JSON.stringify(filterData);
-        Data.Filters = filteringFields
+        Data.Filters = filteringFields;  
     }
     else if (isSorting) {
         Data.Page = currentPage;
@@ -78,6 +85,7 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         Data.Page = link.attr("href");
         Data.Filters = filteringFields;
     }
+    Data.Offset = tbody.data('max-items') * (Data.Page - 1);
 
     $.ajax({
         url: table.data("callback"),
@@ -102,7 +110,8 @@ function selectFilterType(event) {
         if ($(this).is(":selected")) {
             selectionType = $(this).data("type");
         }
-    })
+    });
+    var container = "";
     if (selectionType === "range") {
 
         if (columnType === "number") {
@@ -110,7 +119,7 @@ function selectFilterType(event) {
                 "<input type='number' class='form-control filter-range range-min' placeholder='Min'/>" +
                 "<input type='number' class='form-control filter-range range-max' placeholder='Max'/>" +
                 "</div>");
-            var container = target.closest("td").find(".range-container");
+            container = target.closest("td").find(".range-container");
             container.keyup(function (event) { getTableBodyAjax(event, false, true); });
         }
         else {
@@ -129,17 +138,17 @@ function selectFilterType(event) {
 
     } else {
         if (columnType === "date-time") {
-            var container = target.closest("td").find(".range-container");
+            container = target.closest("td").find(".range-container");
             container.replaceWith("<div class='input-group date filter-date-container' id='datetimepicker'>" +
                 "<input id='datepicker-date' style='border:0px;max-width: 100%;' type='text' class='form-control filter-input' />" +
                 "<span id='datepicker-open' style='border:0px;margin-left:1px' class='input-group-addon calendar-btn'>" +
                 "<i class='fa fa-calendar' aria-hidden='true'></i>" +
                 "</span></div>");
         } else {
-            var container = target.closest("td").find(".range-container");
-            container.replaceWith("<input style='display:inline-block' class='form-control filter-input'/>");
+            container = target.closest("td").find(".range-container");
+            container.replaceWith("<input type='number' style='display:inline-block' class='form-control filter-input'/>");
         }
-        target.siblings(".filter-input").keyup(function (event) { getTableBodyAjax(event, false, true); })
+        target.siblings(".filter-input").keyup(function (event) { getTableBodyAjax(event, false, true); });
     }
     setDatepickerEvents();
 }
@@ -208,7 +217,7 @@ function switchArrows(event) {
 
         orderType === "ASC" ? orderType = "DESC" : orderType = "ASC";
 
-        var isWide = $(window).width() > 650;
+        var isWide = $(window).width() > windowMinWidth;
         var downArrow = $(this).children('[data-sort="down"]');
         var upArrow = $(this).children('[data-sort="up"]');
         if (upArrow.is(':hidden') && downArrow.is(':hidden') && isWide) {
@@ -227,33 +236,14 @@ function switchArrows(event) {
 
 function setDatepickerEvents() {
     $('#datetimepicker, #datetimepicker-min, #datetimepicker-max').datetimepicker({
-        format: 'DD.MM.YYYY',
+        format: dateFormat,
         maxDate: 'now',
-        useCurrent: true,
+        useCurrent: true
         //debug:true
     });
     moment.locale('en', {
         week: { dow: 1 }
     });
-
-    //$('#datetimepicker-min').datetimepicker({
-    //    format: 'DD.MM.YYYY',
-    //    maxDate: 'now',
-    //    useCurrent: true
-    //});
-    //moment.locale('en', {
-    //    week: { dow: 1 }
-    //});
-
-    //$('#datetimepicker-max').datetimepicker({
-    //    format: 'DD.MM.YYYY',
-    //    maxDate: 'now',
-    //    useCurrent: true
-    //});
-    //moment.locale('en', {
-    //    week: { dow: 1 }
-    //});
-
     $('#datetimepicker').on("dp.change", function (event) {
         getTableBodyAjax(event, false, true);
     });
@@ -266,4 +256,39 @@ function setDatepickerEvents() {
         $('#datetimepicker-min').data("DateTimePicker").maxDate(event.date);
         getTableBodyAjax(event, false, true);
     });
+}
+
+function parseDate(date, isMinimum) {
+    var formatArray = dateFormat.split('.');
+    var dateArray = date.split('.');
+    var dateNew = new Date;
+    for (i = 0; i < formatArray.length; i++) {
+        switch (formatArray[i].toLowerCase()) {
+            case "dd": {
+                dateNew.setDate(dateArray[i])
+                break;
+            }
+            case "mm": {
+                dateNew.setMonth(dateArray[i] - 1)
+                break;
+            }
+            case "yyyy": {
+                dateNew.setFullYear(dateArray[i])
+            }
+        }
+    }
+    if (isMinimum) {
+        dateNew.setUTCHours(0);
+        dateNew.setMinutes(0);
+        dateNew.setSeconds(0);
+        dateNew.setMilliseconds(0);
+    }
+    else {
+        dateNew.setUTCHours(23);
+        dateNew.setMinutes(59);
+        dateNew.setSeconds(59);
+        dateNew.setMilliseconds(999);
+    }
+
+    return dateNew;
 }

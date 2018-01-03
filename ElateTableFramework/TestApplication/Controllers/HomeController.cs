@@ -16,57 +16,50 @@ namespace TestApplication.Controllers
         {
             var repos = new AutoRepository();
             var count = 0;
-            var list = repos.GetUsersPagination("Id", "DESC", page, new PaginationConfig() { MaxItemsInPage = 20 }, out count);
-            ViewData["options"] = SetOptions(count, page);
+            var config = new PaginationConfig(20, page)
+            {
+                OrderByField = "Id",
+                OrderType = "DESC",
+                Page = page,
+                TotalPagesMax = 5,
+            };
+            var list = repos.GetUsersPagination(config, out count);
+            config.TotalListLength = count;
+            ViewData["options"] = SetOptions(config);
 
             return View(list);
         }
 
-        public HtmlString PaginationAsync(AjaxPaginationConfig config)
+        public HtmlString PaginationAsync(PaginationConfig config)
         {
             var repos = new AutoRepository();
             var count = 0;
-            var list = repos.GetUsersPagination(config.OrderByField, config.OrderType, config.Page, new PaginationConfig() { MaxItemsInPage = 20, Offset = 20 * (config.Page - 1) }, out count);
-            var test = TableHelper.ElateGetTableBody(list, SetOptions(count, config.Page));
 
-            return new HtmlString(test.ToHtmlString());
+            var list = repos.GetUsersPagination(config, out count);
+            config.TotalListLength = count;
+
+            return TableHelper.ElateGetTableBody(list, SetOptions(config));
         }
 
-        private TableConfiguration SetOptions(int listLength, int page)
+        private TableConfiguration SetOptions(PaginationConfig config)
         {
             TableConfiguration options = new TableConfiguration()
             {
                 Rename = new Dictionary<string, string>()
                 {
-
                     { "Model", "Модель" },
                     { "Engine", "Двигатель" },
                     { "Year", "Год" }
                 },
-                //Merge = new Dictionary<string, string[]>
-                //{
-                //    { "Color & Id", new string[]{ "Color", "Id", "Year" } },
-                //},
-                //ColumnOrder = new Dictionary<string, int>()
-                //{
-                //    { "Color & Id", 10 },
-                //    { "Год", -1 }
-                //},
                 ColorScheme = ColorScheme.Default,
                 SetClass = new Dictionary<Tag, string>()
                 {
                     { Tag.Table, "table table-bordered" },
                 },
-                PaginationConfig = new PaginationConfig()
-                {
-                    MaxItemsInPage = 20,
-                    Offset = 20*(page-1),
-                    TotalListLength = listLength,
-                    TotalPagesMax = 5,
-                    CallbackController = "Home",
-                    CallbackAction = "PaginationAsync",
-                },
+                PaginationConfig = config,
                 RowsHighlight = true,
+                CallbackController = "Home",
+                CallbackAction = "PaginationAsync",
                 ColumnWidthInPercent = new Dictionary<string, byte>()
                 {
                     { "Модель", 30 },
@@ -76,7 +69,7 @@ namespace TestApplication.Controllers
                 MessageForEmptyTable = "Пустая таблица",
                 ColumnFormat = new Dictionary<string, string>()
                 {
-                    { "Date","MM.dd.yyyy"},
+                    { "Date","dd.MM.yyyy"},
                 }
             };
 

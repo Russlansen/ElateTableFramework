@@ -34,10 +34,10 @@ namespace ElateTableFramework
             table.MergeAttribute("data-rows-highlight", _config.RowsHighlight.ToString().ToLower());
 
             if(_config.PaginationConfig != null &&
-                                        !string.IsNullOrEmpty(_config.PaginationConfig.CallbackAction))
+                                        !string.IsNullOrEmpty(_config.CallbackAction))
             {
-                table.MergeAttribute("data-callback", _config.PaginationConfig.CallbackController + "/" +
-                                                  _config.PaginationConfig.CallbackAction);
+                table.MergeAttribute("data-callback", _config.CallbackController + "/" +
+                                                  _config.CallbackAction);
             }
             
             Type entityType = typeof(T);
@@ -121,6 +121,10 @@ namespace ElateTableFramework
                 TagBuilder td = new TagBuilder("td");
                 td.MergeAttribute("class", SetAttribute(Tag.THeadTd));
                 td.MergeAttribute("data-column-type", headersAndTypes[field]);
+                if (_config.ColumnFormat.ContainsKey(field))
+                {
+                    td.MergeAttribute("data-column-format", _config.ColumnFormat[field]);
+                }
 
                 if (_config.ColumnWidthInPercent.ContainsKey(field))
                 {
@@ -157,7 +161,7 @@ namespace ElateTableFramework
                     case "number":
                         {
                             td.InnerHtml += selectorHtml;
-                            td.InnerHtml += "<input style='display:none' class='form-control filter-input'/>";
+                            td.InnerHtml += "<input type='number' style='display:none' class='form-control filter-input'/>";
                             break;
                         }
                     case "date-time":
@@ -189,6 +193,7 @@ namespace ElateTableFramework
         {
             TagBuilder tbody = new TagBuilder("tbody");
             tbody.MergeAttribute("class", SetAttribute(Tag.TBody));
+            tbody.MergeAttribute("data-max-items", _config.PaginationConfig?.MaxItemsInPage.ToString() ?? "0");
             var excludedBecauseOfMerge = new List<string>();
             bool isMerged = _config.Merge != null;
             foreach (var entity in entities)
@@ -283,6 +288,7 @@ namespace ElateTableFramework
             TagBuilder tr = new TagBuilder("tr");
             tr.MergeAttribute("data-pager", "true");
             tr.MergeAttribute("data-current-page", currentPage.ToString());
+            tr.MergeAttribute("data-max-pages", _config.PaginationConfig.TotalPagesMax.ToString());
             TagBuilder td = new TagBuilder("td");
             td.MergeAttribute("colspan", _totalColumnCount.ToString());
             TagBuilder div = new TagBuilder("div");

@@ -23,6 +23,10 @@ namespace ElateTableFramework.Configuration
 
         public PaginationConfig PaginationConfig { get; set; }
 
+        public string CallbackAction { get; set; }
+
+        public string CallbackController { get; set; }
+
         public Dictionary<Tag, string> SetClass { get; set; }
 
         public bool RowsHighlight { get; set; }
