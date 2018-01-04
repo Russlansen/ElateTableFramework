@@ -3,6 +3,7 @@ var orderByField = "";
 var filteringFields = {};
 var dateFormat = "DD.MM.YYYY";
 var windowMinWidth = 650;
+var filterType = "";
 
 $(function () {
     var headers = $("table thead tr td");
@@ -11,12 +12,11 @@ $(function () {
     var filterInput = headers.find(".filter-input");
     var filterSelect = headers.find(".filter-select");
     orderByField = headers.first().data("original-field-name");
-    //dateFormat = "column-format"
     headers.click(switchArrows);
     filter.click(function (event) { getFilters(event, true); });
     headers.click(function (event) { getTableBodyAjax(event, true, false); });
     pager.click(function (event) { getTableBodyAjax(event, false, false); });
-    filterInput.keyup(function (event) { getTableBodyAjax(event, false, true); });
+    filterInput.on('input', function (event) { getTableBodyAjax(event, false, true); });
     filterSelect.change(selectFilterType);
     setDatepickerEvents();
 });
@@ -24,13 +24,17 @@ $(function () {
 function getTableBodyAjax(event, isSorting, isFiltering) {
     event.preventDefault();
     var target = $(event.target);
-    if ((target.hasClass("filter-input")  ||
-         target.hasClass("filter-select") ||
-         target.closest("div").hasClass("range-container") ||
-         target.closest("div").hasClass("input-group")) && event.type === "click")
-    {
-        return;
+
+    if (!target.hasClass("elate-main-thead-td") && event.type === "click") {
+        return
     }
+
+    target.siblings("select").children("option").each(function () {
+        if ($(this).is(":selected")) {
+            filterType = $(this).data("type");
+        }
+    });
+
     var table = target.closest('table');
     var tbody = table.children('tbody');
     var link = target.closest('a');  
@@ -45,22 +49,23 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         if (container.hasClass("range-container")) {
             min = parseDate(container.find(".range-min").val(), true);
             max = parseDate(container.find(".range-max").val(), false);
-            filterData = [min, max];
+            filterData = [min, max, filterType];
         } else if (target.hasClass("filter-date-container")) {
             min = parseDate(target.find('.filter-input').val(), true);
             max = parseDate(target.find('.filter-input').val(), false);
-            filterData = [min, max];
+            filterData = [min, max, filterType];
         }
 
     } else {
         var div = target.closest("div");
+        var input = target.closest("td").find("input.filter-input");
         if (div.hasClass("range-container")) {
             min = div.find(".range-min").val();
             max = div.find(".range-max").val();
-            if (min === "" && max === "") return;
-            filterData = [min, max];
-        } else if (target.hasClass("filter-input")) {
-            filterData = [target.val()];
+            if (+min > +max) max = "";
+            filterData = [min, max, filterType];
+        } else if (input) {
+            filterData = [input.val(), filterType];
         }
     }
     
@@ -111,16 +116,14 @@ function selectFilterType(event) {
             selectionType = $(this).data("type");
         }
     });
-    var container = "";
+    var container;
     if (selectionType === "range") {
 
-        if (columnType === "number") {
+        if (columnType === "number") {           
             input.replaceWith("<div class='range-container'>" +
                 "<input type='number' class='form-control filter-range range-min' placeholder='Min'/>" +
                 "<input type='number' class='form-control filter-range range-max' placeholder='Max'/>" +
-                "</div>");
-            container = target.closest("td").find(".range-container");
-            container.keyup(function (event) { getTableBodyAjax(event, false, true); });
+                "</div>");   
         }
         else {
             dateInput.replaceWith(
@@ -135,30 +138,36 @@ function selectFilterType(event) {
                 "<i class='fa fa-calendar' aria-hidden='true'></i>" +
                 "</span></div></div>");
         }
-
-    } else {
+        container = target.closest("td").find(".range-container");
+        container.on('input', function (event) { getTableBodyAjax(event, false, true); });
+    }
+    else {
         if (columnType === "date-time") {
             container = target.closest("td").find(".range-container");
             container.replaceWith("<div class='input-group date filter-date-container' id='datetimepicker'>" +
                 "<input id='datepicker-date' style='border:0px;max-width: 100%;' type='text' class='form-control filter-input' />" +
                 "<span id='datepicker-open' style='border:0px;margin-left:1px' class='input-group-addon calendar-btn'>" +
                 "<i class='fa fa-calendar' aria-hidden='true'></i>" +
-                "</span></div>");
-        } else {
-            container = target.closest("td").find(".range-container");
-            container.replaceWith("<input type='number' style='display:inline-block' class='form-control filter-input'/>");
+                "</span></div>");  
         }
-        target.siblings(".filter-input").keyup(function (event) { getTableBodyAjax(event, false, true); });
+        else {
+            container = target.closest("td").find(".range-container");
+            container.replaceWith("<input type='number' style='display:inline-block' class='form-control filter-input'/>");    
+        }
+        filterType = selectionType; 
+        input = target.siblings(".filter-input");
+        input.on('input', function (event) { getTableBodyAjax(event, false, true); });
+        getTableBodyAjax(event, false, true);
     }
     setDatepickerEvents();
 }
-
 
 function getFilters(event, isOpening) {
     var filterBtn = $(event.target);
     var td = filterBtn.closest('td');
     var input = td.find(".filter-input");
     var select = td.find(".filter-select");
+    var selectionType = "";
 
     if (isOpening) {
         filterBtn.replaceWith("<i class='fa fa-times-circle close-filter-button' aria-hidden='true'></i>");

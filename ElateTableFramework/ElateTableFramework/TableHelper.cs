@@ -121,10 +121,6 @@ namespace ElateTableFramework
                 TagBuilder td = new TagBuilder("td");
                 td.MergeAttribute("class", SetAttribute(Tag.THeadTd));
                 td.MergeAttribute("data-column-type", headersAndTypes[field]);
-                if (_config.ColumnFormat.ContainsKey(field))
-                {
-                    td.MergeAttribute("data-column-format", _config.ColumnFormat[field]);
-                }
 
                 if (_config.ColumnWidthInPercent.ContainsKey(field))
                 {
@@ -177,7 +173,12 @@ namespace ElateTableFramework
                         }
                     default:
                         {
-                            td.InnerHtml += "<input style='display:none;' class='form-control filter-input'/>";
+                            td.InnerHtml += @"<select style='display:none' class='form-control filter-select string-filter-selector'/>
+                                                <option data-type='begins' selected>Begins</option>
+                                                <option data-type='contains'>Contains</option>
+                                                <option data-type='equal'>Equal</option>
+                                              </select>
+                                              <input style='display:none;' class='form-control filter-input'/>";
                             break;
                         }
                 }
