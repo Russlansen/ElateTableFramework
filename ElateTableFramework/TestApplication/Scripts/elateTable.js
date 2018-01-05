@@ -1,4 +1,4 @@
-﻿var orderType = "ASC";
+﻿var orderType = "";
 var orderByField = "";
 var filteringFields = {};
 var dateFormat = "DD.MM.YYYY";
@@ -12,6 +12,7 @@ $(function () {
     var filterInput = headers.find(".filter-input");
     var filterSelect = headers.find(".filter-select");
     orderByField = headers.first().data("original-field-name");
+    orderType = $("table.elate-main-table").data("order-type");
     headers.click(switchArrows);
     filter.click(function (event) { getFilters(event, true); });
     headers.click(function (event) { getTableBodyAjax(event, true, false); });
@@ -24,9 +25,16 @@ $(function () {
 function getTableBodyAjax(event, isSorting, isFiltering) {
     event.preventDefault();
     var target = $(event.target);
+    var table = target.closest('table.elate-main-table');
 
-    if (!target.hasClass("elate-main-thead-td") && event.type === "click") {
-        return
+    if (table.data("callback") === undefined ||
+        table.data("callback") === "") {
+        return;
+    } 
+    if (!target.hasClass("elate-main-thead-td") && event.type === "click" &&
+        !target.closest('div').hasClass("page-item"))
+    {
+        return;
     }
 
     target.siblings("select").children("option").each(function () {
@@ -35,7 +43,6 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         }
     });
 
-    var table = target.closest('table');
     var tbody = table.children('tbody');
     var link = target.closest('a');  
     var columnType = target.closest("td").data("column-type");
@@ -68,9 +75,8 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
             filterData = [input.val(), filterType];
         }
     }
-    
+    var page = "";
     var Data = {
-        Page: "",
         OrderByField: orderByField,
         OrderType: orderType,
         Filters: filteringFields,
@@ -79,19 +85,19 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         TotalPagesMax: tbody.find("[data-pager=true]").data("max-pages")
     };
     if (isFiltering) {
-        Data.Page = currentPage;
+        page = currentPage;
         filteringFields[fieldName] = JSON.stringify(filterData);
         Data.Filters = filteringFields;  
     }
     else if (isSorting) {
-        Data.Page = currentPage;
+        page = currentPage;
         Data.Filters = filteringFields;
     } else {
-        Data.Page = link.attr("href");
+        page = link.attr("href");
         Data.Filters = filteringFields;
     }
-    Data.Offset = tbody.data('max-items') * (Data.Page - 1);
-
+    Data.Offset = tbody.data('max-items') * (page - 1);
+    
     $.ajax({
         url: table.data("callback"),
         method: "POST",
@@ -192,6 +198,7 @@ function getFilters(event, isOpening) {
 function clearFilter(event) {
     var target = $(event.target);
     var table = target.closest('table');
+    var tbody = table.children('tbody');
     var fieldName = target.closest("td").data("original-field-name");
     var currentPage = table.find("tr[data-pager='true']").data("current-page");
     delete filteringFields[fieldName];
@@ -199,7 +206,10 @@ function clearFilter(event) {
         Page: currentPage,
         OrderByField: orderByField,
         OrderType: orderType,
-        Filters: filteringFields
+        Filters: filteringFields,
+        MaxItemsInPage: tbody.data('max-items'),
+        TotalPagesMax: tbody.find("[data-pager=true]").data("max-pages"),
+        Offset: tbody.data('max-items') * (currentPage - 1)
     };
     $.ajax({
         url: table.data("callback"),
@@ -247,8 +257,8 @@ function setDatepickerEvents() {
     $('#datetimepicker, #datetimepicker-min, #datetimepicker-max').datetimepicker({
         format: dateFormat,
         maxDate: 'now',
-        useCurrent: true
-        //debug:true
+        useCurrent: true,
+        debug:true
     });
     moment.locale('en', {
         week: { dow: 1 }
@@ -274,15 +284,15 @@ function parseDate(date, isMinimum) {
     for (i = 0; i < formatArray.length; i++) {
         switch (formatArray[i].toLowerCase()) {
             case "dd": {
-                dateNew.setDate(dateArray[i])
+                dateNew.setDate(dateArray[i]);
                 break;
             }
             case "mm": {
-                dateNew.setMonth(dateArray[i] - 1)
+                dateNew.setMonth(dateArray[i] - 1);
                 break;
             }
             case "yyyy": {
-                dateNew.setFullYear(dateArray[i])
+                dateNew.setFullYear(dateArray[i]);
             }
         }
     }

@@ -4,10 +4,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Dapper;
-
+using System.Dynamic;
 
 namespace ElateTableFramework
 {
@@ -15,9 +14,15 @@ namespace ElateTableFramework
     {
         public static IEnumerable<T> GetPagination<T>(this IDbConnection db, PaginationConfig config, out int count)
         {
-            var queryString = new StringBuilder($"SELECT * FROM {GetTableName<T>()}");
+            var mainQueryString = new StringBuilder($"SELECT * FROM {GetTableName<T>()}");
+            var subQueryString = new StringBuilder();
+            dynamic sqlParameters = new ExpandoObject();
 
-            var sqlParameters = new SQLParameters();
+            if (string.IsNullOrEmpty(config.OrderByField))
+            {
+                Type entity = typeof(T);
+                config.OrderByField = entity.GetProperties()[0].Name;
+            }
 
             if (config.Filters != null)
             {
@@ -35,24 +40,25 @@ namespace ElateTableFramework
 
                             var isEmpty = string.IsNullOrEmpty(min) && string.IsNullOrEmpty(max);
                             if (filterCount > 0 && filterCount < config.Filters.Count && !isEmpty)
-                                queryString.Append(" AND");
+                                subQueryString.Append(" AND");
 
-                            if (filterCount == 0 && !isEmpty) queryString.Append(" WHERE");
+                            if (filterCount == 0 && !isEmpty) subQueryString.Append(" WHERE");
 
-                            sqlParameters.Min = min;
-                            sqlParameters.Max = max;
+                            ((IDictionary<String, Object>)sqlParameters).Add("Min" + filterCount, min);
+                            ((IDictionary<String, Object>)sqlParameters).Add("Max" + filterCount, max);
 
                             if (!string.IsNullOrEmpty(min) && !string.IsNullOrEmpty(max))
                             {
-                                queryString.Append($" [{filter.Key}] >= @Min AND [{filter.Key}] <= @Max");
+                                subQueryString.Append($" [{filter.Key}] >= @Min{filterCount} AND" +
+                                                      $" [{filter.Key}] <= @Max{filterCount}");
                             }
                             else if (!string.IsNullOrEmpty(min) && string.IsNullOrEmpty(max))
                             {
-                                queryString.Append($" [{filter.Key}] >= @Min");
+                                subQueryString.Append($" [{filter.Key}] >= @Min{filterCount}");
                             }
                             else if (string.IsNullOrEmpty(min) && !string.IsNullOrEmpty(max))
                             {
-                                queryString.Append($" [{filter.Key}] <= @Max");
+                                subQueryString.Append($" [{filter.Key}] <= @Max{filterCount}");
                             }
                             else continue;
                         }
@@ -63,28 +69,28 @@ namespace ElateTableFramework
                             if (string.IsNullOrEmpty(value))
                                 continue;
                             else if (filterCount > 0 && filterCount < config.Filters.Count)
-                                queryString.Append(" AND");
+                                subQueryString.Append(" AND");
 
                             
-                            if (filterCount == 0) queryString.Append(" WHERE");
+                            if (filterCount == 0) subQueryString.Append(" WHERE");
                             switch (filters[1])
                             {
                                 case "begins":
                                     {
-                                        queryString.Append($" [{filter.Key}] LIKE @Value");
-                                        sqlParameters.Value = value + "%%";
+                                        subQueryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
+                                        ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, value + "%%");
                                         break;
                                     }
                                 case "contains":
                                     {
-                                        queryString.Append($" [{filter.Key}] LIKE @Value");
-                                        sqlParameters.Value = "%%" + value + "%%";
+                                        subQueryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
+                                        ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, "%%" + value + "%%");
                                         break;
                                     }
                                 default:
                                     {
-                                        queryString.Append($" [{filter.Key}] LIKE @Value");
-                                        sqlParameters.Value = value;
+                                        subQueryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
+                                        ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, value);
                                         break;
                                     }
                             }
@@ -100,20 +106,48 @@ namespace ElateTableFramework
                     filterCount++;
                 }
             }
-            queryString.Append($" ORDER BY {config.OrderByField} {config.OrderType} OFFSET {config.Offset} " +
-                               $"ROWS FETCH NEXT {config.MaxItemsInPage} ROWS ONLY");
+            mainQueryString.Append(subQueryString);
+
             try
             {
-                count = db.Query<int>($"SELECT COUNT (*) FROM Autos").FirstOrDefault();
-                return db.Query<T>(queryString.ToString(), sqlParameters).ToList();
+                if (!string.IsNullOrEmpty(subQueryString.ToString()))
+                {
+                    count = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()} {subQueryString}",
+                                                                (object)sqlParameters).FirstOrDefault();
+                }
+                else
+                {
+                    count = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()}").FirstOrDefault();
+                }
+
+                if (count <= config.Offset)
+                {
+                    int page = count / (config.MaxItemsInPage + 1);
+                    config.Offset = config.MaxItemsInPage * page;
+                }
+
+                mainQueryString.Append($" ORDER BY [{config.OrderByField}] {config.OrderType} OFFSET {config.Offset} " +
+                           $"ROWS FETCH NEXT {config.MaxItemsInPage} ROWS ONLY");
+                return db.Query<T>(mainQueryString.ToString(), (object)sqlParameters).ToList();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 count = 0;
                 return new List<T>();
             }
-            
+        }
 
+        public static IEnumerable<T> GetPagination<T>(this IDbConnection db, OrderType type, string columnName)
+        {
+            var mainQueryString = $"SELECT * FROM {GetTableName<T>()} ORDER BY [{columnName}] {type}";
+            try
+            {
+                return db.Query<T>(mainQueryString);
+            }
+            catch (Exception)
+            {
+                return new List<T>();
+            }   
         }
 
         private static string GetTableName<T>()
@@ -137,13 +171,5 @@ namespace ElateTableFramework
             }
             return tableName;
         }
-
-    }
-
-    class SQLParameters
-    {
-        public string Min { get; set; }
-        public string Max { get; set; }
-        public string Value { get; set; }
     }
 }

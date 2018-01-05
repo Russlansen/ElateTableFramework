@@ -75,7 +75,6 @@
     <Compile Include="Attributes\ElateExcludePropertyAttribute.cs" />
     <Compile Include="Attributes\ElateMergeAttribute.cs" />
     <Compile Include="Attributes\ElatePropertyRenameAttribute.cs" />
-    <Compile Include="Configuration\AjaxPaginationConfig.cs" />
     <Compile Include="Configuration\PaginationConfig.cs" />
     <Compile Include="Configuration\TableConfiguration.cs" />
     <Compile Include="SQLPagination.cs" />

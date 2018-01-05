@@ -20,7 +20,15 @@ namespace ElateTableFramework
             Type entityType = typeof(T);
             var properties = entityType.GetProperties();
             _config = config ?? new TableConfiguration();
-            var htmlBody = BuildTBodyTag(entities, properties);
+            TagBuilder htmlBody;
+            if (entities.Any())
+            {
+                htmlBody = BuildTBodyTag(entities, properties);
+            }
+            else
+            {
+                htmlBody = BuildEmptyTBodyTag();
+            }
             return new MvcHtmlString(htmlBody.ToString());
         }
 
@@ -28,35 +36,29 @@ namespace ElateTableFramework
         {
             _config = config ?? new TableConfiguration();
 
+            Type entityType = typeof(T);
             TagBuilder table = new TagBuilder("table");
             table.MergeAttribute("class", SetAttribute(Tag.Table));
             table.MergeAttribute("data-scheme", _config.ColorScheme.ToString());
+            table.MergeAttribute("data-order-type", _config.PaginationConfig?.OrderType.ToString() ?? "ASC");
             table.MergeAttribute("data-rows-highlight", _config.RowsHighlight.ToString().ToLower());
 
-            if(_config.PaginationConfig != null &&
-                                        !string.IsNullOrEmpty(_config.CallbackAction))
+            if(_config.PaginationConfig != null ||
+               (!string.IsNullOrEmpty(_config.CallbackAction) && 
+                !string.IsNullOrEmpty(_config.CallbackController)))
             {
                 table.MergeAttribute("data-callback", _config.CallbackController + "/" +
                                                   _config.CallbackAction);
             }
             
-            Type entityType = typeof(T);
-
             var properties = entityType.GetProperties();
-
             table.InnerHtml += BuildTHeadTag(properties);
 
             if (!entities.Any())
-            {
                 table.InnerHtml += BuildEmptyTBodyTag();
-            }
             else
-            {
-                table.InnerHtml += BuildTBodyTag(entities, properties);
-
-                
-            }
-
+                table.InnerHtml += BuildTBodyTag(entities, properties);   
+            
             return new MvcHtmlString(table.ToString());
         }
 
@@ -91,7 +93,7 @@ namespace ElateTableFramework
                     type = "date-time";
                 }
 
-                if (_config.Excluded != null && _config.Excluded.Contains(property.Name)) continue;
+                if (_config.Exclude != null && _config.Exclude.Contains(property.Name)) continue;
                 if (isMerged)
                 {
                     foreach (var item in _config.Merge)
@@ -122,7 +124,8 @@ namespace ElateTableFramework
                 td.MergeAttribute("class", SetAttribute(Tag.THeadTd));
                 td.MergeAttribute("data-column-type", headersAndTypes[field]);
 
-                if (_config.ColumnWidthInPercent.ContainsKey(field))
+                if (_config.ColumnWidthInPercent != null && 
+                    _config.ColumnWidthInPercent.ContainsKey(field))
                 {
                     int percent = _config.ColumnWidthInPercent[field];
                     td.MergeAttribute("style", "max-width:" + percent + "%;width:" + percent + "%");
@@ -143,9 +146,17 @@ namespace ElateTableFramework
                 }
 
                 td.InnerHtml += "<span>" + field + "</span>";
-                td.InnerHtml += "<a style='display:none' data-sort='down' class='sorting-links'><i class='fa fa-sort-desc sort-arrow' aria-hidden='true'></i>";
-                td.InnerHtml += "<a style='display:none; top:0px' data-sort='up' class='sorting-links'><i class='fa fa-sort-asc sort-arrow' aria-hidden='true'></i></a>";
-                td.InnerHtml += "<i class='fa fa-filter filter-button' aria-hidden='true'></i>";
+
+                if (_config.CallbackAction != null)
+                {
+                    td.InnerHtml += "<a style='display:none' data-sort='down' class='sorting-links'><i class='fa fa-sort-desc sort-arrow' aria-hidden='true'></i>";
+                    td.InnerHtml += "<a style='display:none; top:0px' data-sort='up' class='sorting-links'><i class='fa fa-sort-asc sort-arrow' aria-hidden='true'></i></a>";
+                }
+
+                if (_config.PaginationConfig != null)
+                {
+                    td.InnerHtml += "<i class='fa fa-filter filter-button' aria-hidden='true'></i>";
+                }
 
                 var selectorHtml = @"<select style='display:none' class='form-control filter-select'/>
                                          <option data-type='equal' selected>Equal</option>
@@ -204,7 +215,7 @@ namespace ElateTableFramework
                 var cells = new Dictionary<string, string>();
                 foreach (var property in properties)
                 {
-                    if (_config.Excluded != null && _config.Excluded.Contains(property.Name)) continue;
+                    if (_config.Exclude != null && _config.Exclude.Contains(property.Name)) continue;
 
                     if (isMerged && !excludedBecauseOfMerge.Contains(property.Name))
                     {
@@ -267,13 +278,22 @@ namespace ElateTableFramework
 
         private static TagBuilder BuildEmptyTBodyTag()
         {
+            TagBuilder tbody = new TagBuilder("tbody");
+            tbody.MergeAttribute("class", "elate-main-tbody");
+            tbody.MergeAttribute("data-max-items", _config.PaginationConfig?.MaxItemsInPage.ToString() ?? "0");
+
             TagBuilder tr = new TagBuilder("tr");
             TagBuilder td = new TagBuilder("td");
             td.MergeAttribute("colspan", _totalColumnCount.ToString());
             td.MergeAttribute("class", " text-center pager-main-empty");
             td.SetInnerText(_config.MessageForEmptyTable);
             tr.InnerHtml = td.ToString();
-            return tr;
+            tbody.InnerHtml += tr;
+            if (_config.PaginationConfig != null)
+            {
+                tbody.InnerHtml += GetPagination();
+            }
+            return tbody;
         }
 
         public static TagBuilder GetPagination()

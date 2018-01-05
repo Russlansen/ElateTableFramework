@@ -9,7 +9,7 @@ namespace ElateTableFramework.Configuration
     public class TableConfiguration
     {
         public Dictionary<string, string> Rename { get; set; }
-        public List<string> Excluded { get; set; }
+        public List<string> Exclude { get; set; }
 
         public string MessageForEmptyTable { get; set; }
         public Dictionary<string, string[]> Merge { get; set; }

@@ -32,6 +32,14 @@ namespace TestApplication.Models
                 return db.GetPagination<Auto>(config, out count);
             }       
         }
-        
+
+        public IEnumerable<Auto> GetUsersPagination(OrderType type, string col)
+        {
+            using (IDbConnection db = new SqlConnection(connectionString))
+            {
+                return db.GetPagination<Auto>(type, col);
+            }
+        }
+
     }
 }

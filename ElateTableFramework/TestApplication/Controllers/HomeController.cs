@@ -16,12 +16,9 @@ namespace TestApplication.Controllers
         {
             var repos = new AutoRepository();
             var count = 0;
-            var config = new PaginationConfig(20, page)
+            var config = new PaginationConfig()
             {
-                OrderByField = "Id",
-                OrderType = "DESC",
-                Page = page,
-                TotalPagesMax = 5,
+                MaxItemsInPage = 10
             };
             var list = repos.GetUsersPagination(config, out count);
             config.TotalListLength = count;
@@ -45,12 +42,6 @@ namespace TestApplication.Controllers
         {
             TableConfiguration options = new TableConfiguration()
             {
-                Rename = new Dictionary<string, string>()
-                {
-                    { "Model", "Модель" },
-                    { "Engine", "Двигатель" },
-                    { "Year", "Год" }
-                },
                 ColorScheme = ColorScheme.Default,
                 SetClass = new Dictionary<Tag, string>()
                 {
@@ -62,11 +53,8 @@ namespace TestApplication.Controllers
                 CallbackAction = "PaginationAsync",
                 ColumnWidthInPercent = new Dictionary<string, byte>()
                 {
-                    { "Модель", 30 },
-                    { "Двигатель", 20 },
                     { "Id", 10 }
                 },
-                MessageForEmptyTable = "Пустая таблица",
                 ColumnFormat = new Dictionary<string, string>()
                 {
                     { "Date","dd.MM.yyyy"},

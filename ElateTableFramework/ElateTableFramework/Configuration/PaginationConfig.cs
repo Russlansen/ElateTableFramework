@@ -16,20 +16,23 @@ namespace ElateTableFramework.Configuration
 
         public int Offset { get; set; }
 
-        public int Page { get; set; }
-
         public string OrderByField { get; set; }
 
-        public string OrderType { get; set; }
+        public OrderType OrderType { get; set; }
 
         public Dictionary<string, string> Filters { get; set; }
 
-        public PaginationConfig() { }
-
-        public PaginationConfig(int maxItemsInPage = 10, int page = 0)
+        public PaginationConfig()
         {
-            MaxItemsInPage = maxItemsInPage;
-            Offset = maxItemsInPage * (page - 1);
+            TotalPagesMax = 5;
+            OrderType = OrderType.ASC;
+            MaxItemsInPage = 10;
         }
+    }
+
+    public enum OrderType
+    {
+        ASC,
+        DESC
     }
 }

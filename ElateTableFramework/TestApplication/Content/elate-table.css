@@ -163,14 +163,14 @@ table[data-scheme="Default"] thead.elate-main-thead {
     color: #ffffff;
 }
 
-.elate-main-table[data-scheme="Default"] tr:nth-child(even) {
+.elate-main-table[data-scheme="Default"] tr.elate-main-tr:nth-child(even) {
     transition: all 0.2s linear;
     background-color: #ddd;
 }
-    .elate-main-table[data-scheme="Default"][data-rows-highlight="true"] tr:nth-child(even):hover {
-        transition: all 0.3s linear;
-        background-color: #cecece;
-    }
+.elate-main-table[data-scheme="Default"][data-rows-highlight="true"] tr.elate-main-tr:nth-child(even):hover {
+    transition: all 0.3s linear;
+    background-color: #cecece;
+}
     
     table[data-scheme="Default"][data-rows-highlight="true"] tr.elate-main-tr:hover {
         transition: all 0.3s linear;
@@ -199,11 +199,11 @@ table[data-scheme="Blue"] thead.elate-main-thead {
     color: #ffffff;
 }
 
-.elate-main-table[data-scheme="Blue"] tr:nth-child(even) {
+.elate-main-table[data-scheme="Blue"] tr.elate-main-tr:nth-child(even) {
     transition: all 0.2s linear;
     background-color: #dceaf6;
 }
-.elate-main-table[data-scheme="Blue"][data-rows-highlight="true"] tr:nth-child(even):hover {
+.elate-main-table[data-scheme="Blue"][data-rows-highlight="true"] tr.elate-main-tr:nth-child(even):hover {
     transition: all 0.3s linear;
     background-color: #d2e8f8;
 }
@@ -236,11 +236,11 @@ table[data-scheme="Green"] thead.elate-main-thead {
     color: #ffffff;
 }
 
-table[data-scheme="Green"] tr:nth-child(even) {
+table[data-scheme="Green"] tr.elate-main-tr:nth-child(even) {
     transition: all 0.2s linear;
     background-color: #defce6;
 }
-table[data-scheme="Green"][data-rows-highlight="true"] tr:nth-child(even):hover {
+table[data-scheme="Green"][data-rows-highlight="true"] tr.elate-main-tr:nth-child(even):hover {
     transition: all 0.3s linear;
     background-color: #cbfbd8;
 }
@@ -272,11 +272,11 @@ table[data-scheme="Red"] thead.elate-main-thead {
     color: #ffffff;
 }
 
-table[data-scheme="Red"] tr:nth-child(even) {
+table[data-scheme="Red"] tr.elate-main-tr:nth-child(even) {
     transition: all 0.2s linear;
     background-color: #f0dede;
 }
-table[data-scheme="Red"][data-rows-highlight="true"] tr:nth-child(even):hover {
+table[data-scheme="Red"][data-rows-highlight="true"] tr.elate-main-tr:nth-child(even):hover {
     transition: all 0.3s linear;
     background-color: #eecbcb;
 }
@@ -309,11 +309,11 @@ table[data-scheme="Light"] thead.elate-main-thead {
     color: #292b2c;
 }
 
-.elate-main-table[data-scheme="Light"] tr:nth-child(even) {
+.elate-main-table[data-scheme="Light"] tr.elate-main-tr:nth-child(even) {
     transition: all 0.2s linear;
     background-color: #e4e4e4;
 }
-.elate-main-table[data-scheme="Light"][data-rows-highlight="true"] tr:nth-child(even):hover {
+.elate-main-table[data-scheme="Light"][data-rows-highlight="true"] tr.elate-main-tr:nth-child(even):hover {
     transition: all 0.3s linear;
     background-color: #dcdcdc;
 }
@@ -351,18 +351,18 @@ table[data-scheme="Dark"] thead.elate-main-thead {
     color: #ffffff;
 }
 
-table[data-scheme="Dark"] tbody tr:nth-child(odd) {
+table[data-scheme="Dark"] tbody tr.elate-main-tr:nth-child(odd) {
     transition: all 0.2s linear;
     background-color: #505355;
     color: #ffffff;
 }
 
-table[data-scheme="Dark"] tr:nth-child(even) {
+table[data-scheme="Dark"] tr.elate-main-tr:nth-child(even) {
     transition: all 0.2s linear;
     background-color: #3d4041;
     color: #ffffff;
 }
-table[data-scheme="Dark"][data-rows-highlight="true"] tr:nth-child(even):hover {
+table[data-scheme="Dark"][data-rows-highlight="true"] tr.elate-main-tr:nth-child(even):hover {
     transition: all 0.3s linear;
     background-color: #292b2c;
 }
@@ -394,3 +394,13 @@ table[data-scheme="Dark"] tr div.pager-main a div.page-item {
         background-color: #242526;
     }
 
+/***************DATEPICKER*****************/
+
+.dropdown-menu {
+    background-color: transparent;
+    border:none;
+}
+
+.day {
+    background-color:#a5a5a5;
+}
