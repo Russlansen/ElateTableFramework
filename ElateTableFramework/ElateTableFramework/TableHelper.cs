@@ -130,6 +130,22 @@ namespace ElateTableFramework
                     int percent = _config.ColumnWidthInPercent[field];
                     td.MergeAttribute("style", "max-width:" + percent + "%;width:" + percent + "%");
                 }
+                else if(_config.ColumnWidthInPercent == null)
+                {
+                    double columnWidth = 100.0 / _totalColumnCount;
+                    string outString = columnWidth.ToString("0.00").Replace(",", ".");
+                    td.MergeAttribute("style", "max-width:" + outString + "%;width:" + outString + "%");
+                }
+                else
+                {
+                    int specifiedColumnCount = _config.ColumnWidthInPercent.Count();
+                    double specifiedWidth = _config.ColumnWidthInPercent.Sum(x => x.Value);
+                    double unspecifiedWidth = 100 - specifiedWidth;
+                    double restColumns = _totalColumnCount - specifiedColumnCount;
+                    double calculatedWidth = unspecifiedWidth / restColumns;
+                    string outString = calculatedWidth.ToString("0.00").Replace(",", ".");
+                    td.MergeAttribute("style", "max-width:" + outString + "%;width:" + outString + "%");
+                }
 
                 if(_config.Merge != null && _config.Merge.ContainsKey(field))
                 {
@@ -149,13 +165,15 @@ namespace ElateTableFramework
 
                 if (_config.CallbackAction != null)
                 {
-                    td.InnerHtml += "<a style='display:none' data-sort='down' class='sorting-links'><i class='fa fa-sort-desc sort-arrow' aria-hidden='true'></i>";
-                    td.InnerHtml += "<a style='display:none; top:0px' data-sort='up' class='sorting-links'><i class='fa fa-sort-asc sort-arrow' aria-hidden='true'></i></a>";
+                    td.InnerHtml += $"<a class='sorting-links'>" +
+                                    $"<i data-sort='down' style='visibility:hidden' class='fa fa-sort-desc glyphicon glyphicon-menu-down sort-arrow' aria-hidden='true'></i>" +
+                                    $"<i data-sort='up' style='visibility:hidden' class='fa fa-sort-asc glyphicon glyphicon-menu-up sort-arrow' aria-hidden='true'></i>" +
+                                    $"</a>";
                 }
 
                 if (_config.PaginationConfig != null)
                 {
-                    td.InnerHtml += "<i class='fa fa-filter filter-button' aria-hidden='true'></i>";
+                    td.InnerHtml += "<i class='fa fa-filter glyphicon glyphicon-filter filter-button' aria-hidden='true'></i>";
                 }
 
                 var selectorHtml = @"<select style='display:none' class='form-control filter-select'/>
@@ -177,7 +195,7 @@ namespace ElateTableFramework
                             td.InnerHtml += @"<div style='display:none' class='input-group date filter-date-container' id='datetimepicker'>
                                                 <input id='datepicker-date' style='border:0px;max-width: 100%;' type='text' class='form-control filter-input' />
                                                 <span id='datepicker-open' style='border:0px;margin-left:1px' class='input-group-addon calendar-btn'>
-                                                    <i class='fa fa-calendar' aria-hidden='true'></i>
+                                                    <i class='fa fa-calendar glyphicon glyphicon-calendar' aria-hidden='true'></i>
                                                 </span>
                                              </div>";
                             break;
@@ -317,13 +335,13 @@ namespace ElateTableFramework
 
             if (currentPage > 1)
             {
-                div.InnerHtml += @"<a href='1'><div data-arrow='left' class='page-item'><i class='fa fa-angle-double-left' aria-hidden='true'></i></div></a>";
-                div.InnerHtml += @"<a href='" + (currentPage - 1) + "'><div data-arrow='left' class='page-item'><i class='fa fa-angle-left' aria-hidden='true'></i></div></a>";
+                div.InnerHtml += @"<a href='1'><div data-arrow='left' class='page-item'><i class='fa fa-angle-double-left glyphicon glyphicon-backward' aria-hidden='true'></i></div></a>";
+                div.InnerHtml += @"<a href='" + (currentPage - 1) + "'><div data-arrow='left' class='page-item'><i class='fa fa-angle-left glyphicon glyphicon-triangle-left' aria-hidden='true'></i></div></a>";
             }
             else
             {
-                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'><i class='fa fa-angle-double-left' aria-hidden='true'></i></div>";
-                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'><i class='fa fa-angle-left' aria-hidden='true'></i></div>";
+                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'><i class='fa fa-angle-double-left glyphicon glyphicon-backward' aria-hidden='true'></i></div>";
+                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'><i class='fa fa-angle-left glyphicon glyphicon glyphicon-triangle-left' aria-hidden='true'></i></div>";
             }
             foreach (var page in pagesArray)
             {
@@ -341,12 +359,12 @@ namespace ElateTableFramework
             }
             if (currentPage < totalPages)
             {
-                div.InnerHtml += @"<a href='" + (currentPage + 1) + "'><div data-arrow='right' class='page-item'><i class='fa fa-angle-right' aria-hidden='true'></i></div></a>";
-                div.InnerHtml += @"<a href='" + totalPages + "'><div data-arrow='right' class='page-item'><i class='fa fa-angle-double-right' aria-hidden='true'></i></div></a>";
+                div.InnerHtml += @"<a href='" + (currentPage + 1) + "'><div data-arrow='right' class='page-item'><i class='fa fa-angle-right glyphicon glyphicon-triangle-right' aria-hidden='true'></i></div></a>";
+                div.InnerHtml += @"<a href='" + totalPages + "'><div data-arrow='right' class='page-item'><i class='fa fa-angle-double-right glyphicon glyphicon-forward' aria-hidden='true'></i></div></a>";
             }else if (currentPage == totalPages)
             {
-                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'><i class='fa fa-angle-right' aria-hidden='true'></i></div>";
-                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'><i class='fa fa-angle-double-right' aria-hidden='true'></i></div>";
+                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'><i class='fa fa-angle-right glyphicon glyphicon-triangle-right' aria-hidden='true'></i></div>";
+                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'><i class='fa fa-angle-double-right glyphicon glyphicon-forward' aria-hidden='true'></i></div>";
             }
             td.InnerHtml = div.ToString();
             tr.InnerHtml = td.ToString();

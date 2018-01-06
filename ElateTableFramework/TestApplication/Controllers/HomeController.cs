@@ -18,7 +18,8 @@ namespace TestApplication.Controllers
             var count = 0;
             var config = new PaginationConfig()
             {
-                MaxItemsInPage = 10
+                MaxItemsInPage = 10,
+                OrderType = OrderType.DESC
             };
             var list = repos.GetUsersPagination(config, out count);
             config.TotalListLength = count;
@@ -42,7 +43,7 @@ namespace TestApplication.Controllers
         {
             TableConfiguration options = new TableConfiguration()
             {
-                ColorScheme = ColorScheme.Default,
+                ColorScheme = ColorScheme.Blue,
                 SetClass = new Dictionary<Tag, string>()
                 {
                     { Tag.Table, "table table-bordered" },
@@ -53,7 +54,7 @@ namespace TestApplication.Controllers
                 CallbackAction = "PaginationAsync",
                 ColumnWidthInPercent = new Dictionary<string, byte>()
                 {
-                    { "Id", 10 }
+                    { "Id", 10 },
                 },
                 ColumnFormat = new Dictionary<string, string>()
                 {

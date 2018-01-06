@@ -32,7 +32,8 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         return;
     } 
     if (!target.hasClass("elate-main-thead-td") && event.type === "click" &&
-        !target.closest('div').hasClass("page-item"))
+        !target.closest('div').hasClass("page-item") &&
+        !target.closest('a').hasClass("sorting-links"))
     {
         return;
     }
@@ -136,12 +137,12 @@ function selectFilterType(event) {
                 "<div class='range-container'><div class='input-group date filter-range' id='datetimepicker-min'>" +
                 "<input id = 'datepicker-date' style='border:0px' type = 'text' class='form-control date-range-input range-min' />" +
                 "<span id='datepicker-open' style='border:0px;margin-left:1px;' class='input-group-addon calendar-btn'>" +
-                "<i class='fa fa-calendar' aria-hidden='true'></i>" +
+                "<i class='fa fa-calendar glyphicon glyphicon-calendar' aria-hidden='true'></i>" +
                 "</span></div>" +
                 "<div class='input-group date filter-range' id='datetimepicker-max'>" +
                 "<input id = 'datepicker-date' style='border:0px;' type = 'text' class='form-control date-range-input range-max' />" +
                 "<span id='datepicker-open' style='border:0px;margin-left:1px;' class='input-group-addon calendar-btn'>" +
-                "<i class='fa fa-calendar' aria-hidden='true'></i>" +
+                "<i class='fa fa-calendar glyphicon glyphicon-calendar' aria-hidden='true'></i>" +
                 "</span></div></div>");
         }
         container = target.closest("td").find(".range-container");
@@ -153,7 +154,7 @@ function selectFilterType(event) {
             container.replaceWith("<div class='input-group date filter-date-container' id='datetimepicker'>" +
                 "<input id='datepicker-date' style='border:0px;max-width: 100%;' type='text' class='form-control filter-input' />" +
                 "<span id='datepicker-open' style='border:0px;margin-left:1px' class='input-group-addon calendar-btn'>" +
-                "<i class='fa fa-calendar' aria-hidden='true'></i>" +
+                "<i class='fa fa-calendar glyphicon glyphicon-calendar' aria-hidden='true'></i>" +
                 "</span></div>");  
         }
         else {
@@ -176,7 +177,7 @@ function getFilters(event, isOpening) {
     var selectionType = "";
 
     if (isOpening) {
-        filterBtn.replaceWith("<i class='fa fa-times-circle close-filter-button' aria-hidden='true'></i>");
+        filterBtn.replaceWith("<i class='fa fa-times-circle glyphicon glyphicon-remove-sign close-filter-button' aria-hidden='true'></i>");
         $(".close-filter-button").click(clearFilter);
         $(".close-filter-button").click(function (event) { getFilters(event, false); });
         td.find(".range-container").slideDown(200, "linear");
@@ -184,7 +185,7 @@ function getFilters(event, isOpening) {
         input.slideDown(200, "linear");
         td.find(".filter-date-container").slideDown(200, "linear");
     } else {
-        filterBtn.replaceWith("<i class='fa fa-filter filter-button' aria-hidden='true'></i>");
+        filterBtn.replaceWith("<i class='fa fa-filter glyphicon glyphicon-filter filter-button' aria-hidden='true'></i>");
         $(".filter-button").click(function (event) { getFilters(event, true); });
         input.val("");
         td.find(".range-container").children().val("");
@@ -230,25 +231,25 @@ function switchArrows(event) {
         orderByField = $(this).data("original-field-name");
         $(this).closest('tr').children().each(function (index) {
             if (index !== targetIndex) {
-                $(this).children('[data-sort]').hide();
+                $(this).find('[data-sort]').attr("style", "visibility:hidden");
             }
         });
 
         orderType === "ASC" ? orderType = "DESC" : orderType = "ASC";
 
         var isWide = $(window).width() > windowMinWidth;
-        var downArrow = $(this).children('[data-sort="down"]');
-        var upArrow = $(this).children('[data-sort="up"]');
-        if (upArrow.is(':hidden') && downArrow.is(':hidden') && isWide) {
-            downArrow.show();
+        var downArrow = $(this).find('[data-sort="down"]');
+        var upArrow = $(this).find('[data-sort="up"]');
+        if (upArrow.css('visibility') == 'hidden' && downArrow.css('visibility') == 'hidden' && isWide) {
+            downArrow.attr("style", "visibility:visible");
         }
-        else if (downArrow.is(':hidden') && isWide) {
-            downArrow.show();
-            upArrow.hide();
+        else if (downArrow.css('visibility') == 'hidden' && isWide) {
+            downArrow.attr("style", "visibility:visible");
+            upArrow.attr("style", "visibility:hidden");
         }
         else if (isWide) {
-            downArrow.hide();
-            upArrow.show();
+            downArrow.attr("style", "visibility:hidden");
+            upArrow.attr("style", "visibility:visible");
         }
     } 
 }
@@ -256,9 +257,7 @@ function switchArrows(event) {
 function setDatepickerEvents() {
     $('#datetimepicker, #datetimepicker-min, #datetimepicker-max').datetimepicker({
         format: dateFormat,
-        maxDate: 'now',
-        useCurrent: true,
-        debug:true
+        useCurrent: false,
     });
     moment.locale('en', {
         week: { dow: 1 }

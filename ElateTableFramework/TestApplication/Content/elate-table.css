@@ -10,14 +10,10 @@
     font-weight: bold;
 }
 
-.elate-main-thead-td {
-    padding: 5px;
-    cursor:pointer;
-}
-
+.elate-main-thead-td, 
 .elate-main-td {
-    padding: 5px;
-}
+        padding: 12px !important;
+    }
 
 .pager-main-empty {
     padding: 5px;
@@ -27,18 +23,24 @@
 
 .sorting-links {
     position: relative;
-    float: right;
-    right:30px;
-    top:-7px;
+    left:15px;
 }
 
 .sort-arrow {
-    color:white;  
+    color: white;
+    position:absolute !important;
+}
+
+.sort-arrow[data-sort='up'] {
+    color: white;
+    position: absolute !important;
+    top:7px;
 }
 
 .calendar-btn {
     border-top-right-radius: .25rem;
     border-bottom-right-radius: .25rem;
+    width: 50px;
 }
 
 #datepicker-date {
@@ -64,16 +66,31 @@
 
 .filter-date-container {
     margin-top: 1px;
+    display:inline-flex;
 }
 
 .filter-select {
+    margin-bottom:3px;
     max-width: 100%;
 }
 
 .filter-range {
     display: inline-flex;
     width: 50%;
+
 }
+
+    .filter-date-container input,
+    .filter-range input {
+        width: 100%;
+        max-width: 100%
+    }
+
+    .filter-date-container calendar-btn,
+    .filter-range calendar-btn {
+        width: 50px;
+    }
+
 div.filter-range {
     padding: 1px;
 }
@@ -396,11 +413,60 @@ table[data-scheme="Dark"] tr div.pager-main a div.page-item {
 
 /***************DATEPICKER*****************/
 
+.table-condensed, .table-condensed thead tr th {
+    text-align: center;
+}
+
 .dropdown-menu {
-    background-color: transparent;
-    border:none;
+    background-color: #e2e2e2;
+    border: none;
 }
 
 .day {
-    background-color:#a5a5a5;
+    transition: all 0.3s linear;
+    background-color: #e2e2e2;
+    font-weight: 100;
+    color:#000;
+}
+
+    .day:hover {
+        transition: all 0.3s linear;
+        background-color: #929292;
+        color: white;
+        font-weight: 300;
+    }
+
+.today {
+    font-weight: bold;
+    background-color: #e4e4e4;
+}
+
+.dow {
+    background-color: #292b2c;
+    border: solid 1px white;
+    color: white;
+    font-weight: 100;
+}
+
+.picker-switch {
+    text-align: center;
+    color: #000;
+}
+
+.prev, .next {
+    color: #000;
+}
+
+.new, .old {
+    color: #bbb9b9;
+}
+
+.month, .year, .decade {
+    color: #000;
+    padding: 2px;
+    cursor: pointer;
+}
+
+.disabled {
+    color: #bbb9b9;
 }
