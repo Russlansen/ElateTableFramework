@@ -11,7 +11,8 @@ $(function () {
     var filter = headers.find(".filter-button");
     var filterInput = headers.find(".filter-input");
     var filterSelect = headers.find(".filter-select");
-    orderByField = headers.first().data("original-field-name");
+    var sortField = $("table.elate-main-table").data("order-field");
+    orderByField = sortField != undefined ? sortField : headers.first().data("original-field-name");
     orderType = $("table.elate-main-table").data("order-type");
     headers.click(switchArrows);
     filter.click(function (event) { getFilters(event, true); });

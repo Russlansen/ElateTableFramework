@@ -15,15 +15,17 @@ namespace TestApplication.Controllers
         public ActionResult Index(int page = 1)
         {
             var repos = new AutoRepository();
-            var count = 0;
             var config = new PaginationConfig()
             {
                 MaxItemsInPage = 10,
-                OrderType = OrderType.DESC
+                OrderType = OrderType.DESC,
+                OrderByField = "Id"
             };
-            var list = repos.GetUsersPagination(config, out count);
+            var list = repos.GetUsersPagination(config, out int count);
             config.TotalListLength = count;
             ViewData["options"] = SetOptions(config);
+
+            config.TotalListLength = count;
 
             return View(list);
         }
@@ -36,14 +38,14 @@ namespace TestApplication.Controllers
             var list = repos.GetUsersPagination(config, out count);
             config.TotalListLength = count;
 
-            return TableHelper.ElateGetTableBody(list, SetOptions(config));
+            return TableHelper.ElateGetTableBody(list, config);
         }
 
         private TableConfiguration SetOptions(PaginationConfig config)
         {
             TableConfiguration options = new TableConfiguration()
             {
-                ColorScheme = ColorScheme.Blue,
+                ColorScheme = ColorScheme.Red,
                 SetClass = new Dictionary<Tag, string>()
                 {
                     { Tag.Table, "table table-bordered" },
@@ -59,7 +61,17 @@ namespace TestApplication.Controllers
                 ColumnFormat = new Dictionary<string, string>()
                 {
                     { "Date","dd.MM.yyyy"},
-                }
+                },
+                Merge = new Dictionary<string, string[]>()
+                {
+                    { "Id", new string[]{ "Id","Model" } }
+                },
+                //ColumnOrder = new Dictionary<string, int>()
+                //{
+                //    { "Date", -100 },
+                //    { "Id", 5 }
+                //},
+                Exclude = new List<string>() { "Year" }
             };
 
             return options;

@@ -9,6 +9,7 @@ namespace ElateTableFramework.Configuration
     public class TableConfiguration
     {
         public Dictionary<string, string> Rename { get; set; }
+
         public List<string> Exclude { get; set; }
 
         public string MessageForEmptyTable { get; set; }
@@ -37,6 +38,7 @@ namespace ElateTableFramework.Configuration
         {
             MergeDivider = " ";
             RowsHighlight = false;
+            Merge = new Dictionary<string, string[]>();
             MessageForEmptyTable = "Empty";
             ColorScheme = ColorScheme.Default;
             ColumnOrder = new Dictionary<string, int>();
