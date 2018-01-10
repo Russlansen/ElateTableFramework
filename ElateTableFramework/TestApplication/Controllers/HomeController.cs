@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Web;
 using System.Web.Mvc;
 using TestApplication.Models;
@@ -21,11 +22,8 @@ namespace TestApplication.Controllers
                 OrderType = OrderType.DESC,
                 OrderByField = "Id"
             };
-            var list = repos.GetUsersPagination(config, out int count);
-            config.TotalListLength = count;
+            var list = repos.GetPagination(config);
             ViewData["options"] = SetOptions(config);
-
-            config.TotalListLength = count;
 
             return View(list);
         }
@@ -33,45 +31,53 @@ namespace TestApplication.Controllers
         public HtmlString PaginationAsync(PaginationConfig config)
         {
             var repos = new AutoRepository();
-            var count = 0;
 
-            var list = repos.GetUsersPagination(config, out count);
-            config.TotalListLength = count;
+            var list = repos.GetPagination(config);
 
             return TableHelper.ElateGetTableBody(list, config);
+        }
+
+        public string Selection()
+        {
+            var repos = new AutoRepository();
+            return repos.GetIndexerJsonArray();
         }
 
         private TableConfiguration SetOptions(PaginationConfig config)
         {
             TableConfiguration options = new TableConfiguration()
             {
-                ColorScheme = ColorScheme.Red,
-                SetClass = new Dictionary<Tag, string>()
-                {
-                    { Tag.Table, "table table-bordered" },
-                },
+                ColorScheme = ColorScheme.Default,
                 PaginationConfig = config,
                 RowsHighlight = true,
                 CallbackController = "Home",
                 CallbackAction = "PaginationAsync",
-                ColumnWidthInPercent = new Dictionary<string, byte>()
-                {
-                    { "Id", 10 },
-                },
+                //Exclude = new List<string>() { "Id" },
+                SelectionColumnIndexerField = "Id",
+                SelectAllCallbackController = "Home",
+                SelectAllCallbackAction = "Selection",
+                AllowMultipleSelection = true,
                 ColumnFormat = new Dictionary<string, string>()
                 {
                     { "Date","dd.MM.yyyy"},
                 },
-                Merge = new Dictionary<string, string[]>()
+                ColumnWidthInPercent = new Dictionary<string, byte>()
                 {
-                    { "Id", new string[]{ "Id","Model" } }
+                    { "Id", 10 },
                 },
+                SetClass = new Dictionary<Tag, string>()
+                {
+                    { Tag.Table, "table table-bordered" },
+                }
+                //Merge = new Dictionary<string, string[]>()
+                //{
+                //    { "Id", new string[]{ "Id","Model" } }
+                //},
                 //ColumnOrder = new Dictionary<string, int>()
                 //{
                 //    { "Date", -100 },
                 //    { "Id", 5 }
                 //},
-                Exclude = new List<string>() { "Year" }
             };
 
             return options;

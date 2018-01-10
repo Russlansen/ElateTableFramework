@@ -36,6 +36,11 @@ namespace ElateTableFramework
 
             Type entityType = typeof(T);
 
+            TagBuilder div = new TagBuilder("div");
+            div.MergeAttribute("id", "loaderRotation");
+            div.InnerHtml = @"<i class='fa fa-spinner fa-pulse fa-5x fa-fw'></i>
+                              <span class='sr-only'>Loading...</span>";
+
             TagBuilder table = new TagBuilder("table");
             table.MergeAttribute("class", SetAttribute(Tag.Table));
             table.MergeAttribute("data-scheme", _config.ColorScheme.ToString());
@@ -58,7 +63,7 @@ namespace ElateTableFramework
             table.InnerHtml += BuildTableHead(properties);
             table.InnerHtml += entities.Any() ? BuildTableBody(entities, properties) : BuildEmptyTableBody();
 
-            return new MvcHtmlString(table.ToString());
+            return new MvcHtmlString(table.ToString() + div.ToString());
         }
 
         private static TagBuilder BuildTableHead(PropertyInfo[] properties)
@@ -114,6 +119,25 @@ namespace ElateTableFramework
             var columnsHeadersAndTypesSorted = SortByHeader(columnsHeadersAndTypes);
             _totalColumnCount = columnsHeadersAndTypesSorted.Count();
 
+            var isSelectAllExist = !string.IsNullOrEmpty(_config.SelectAllCallbackController) &&
+                                   !string.IsNullOrEmpty(_config.SelectAllCallbackAction);
+
+            if (!string.IsNullOrEmpty(_config.SelectionColumnIndexerField))
+            {
+                TagBuilder selectionColumn = new TagBuilder("td");
+                selectionColumn.MergeAttribute("class", "command-column");
+                selectionColumn.MergeAttribute("data-indexer-field", _config.SelectionColumnIndexerField);
+                selectionColumn.MergeAttribute("style", "max-width:2%; width:2%");
+
+                if (isSelectAllExist && _config.AllowMultipleSelection)
+                {
+                    selectionColumn.InnerHtml += @"<input id='checkboxMain' class='checkbox' type='checkbox'>
+                                               <label class='command-label' for='checkboxMain'></label>";
+                }
+                
+                trHead.InnerHtml += selectionColumn;
+            }
+            
             foreach (var header in columnsHeadersAndTypesSorted.Keys)
             {
                 TagBuilder td = new TagBuilder("td");
@@ -121,6 +145,7 @@ namespace ElateTableFramework
                 td.MergeAttribute("data-column-type", columnsHeadersAndTypes[header]);
                 td.MergeAttribute("style", CalculateColumnWidth(header));
                 bool isMerged = _config.Merge != null && _config.Merge.ContainsKey(header);
+                
 
                 if (isMerged)
                 {
@@ -215,60 +240,105 @@ namespace ElateTableFramework
             tbody.MergeAttribute("class", SetAttribute(Tag.TBody));
             tbody.MergeAttribute("data-max-items", _config.PaginationConfig?.MaxItemsInPage.ToString() ?? "0");
 
-            var excludedColumnsByMerge = new List<string>();
-            bool isMerged = _config.Merge != null;
+            List<string> excludedColumnsByMerge;
+            bool isMergingExist = _config.Merge != null;
+
             foreach (var entity in entities)
             {
                 TagBuilder tr = new TagBuilder("tr");
                 tr.MergeAttribute("class", SetAttribute(Tag.Tr));
-                var cells = new Dictionary<string, string>();
+                var cellsInRow = new Dictionary<string, string>();
 
+                excludedColumnsByMerge = new List<string>();
                 var includedPropertyList = GetIncludedPropertyList(properties);
+                bool isPropertyMerged = false;
 
                 foreach (var property in includedPropertyList)
                 {
-                    if (isMerged && !excludedColumnsByMerge.Contains(property.Name))
+                    if (isMergingExist && !isPropertyMerged)
                     {
-                        foreach (var item in _config.Merge)
+                        foreach (var mergedHeader in _config.Merge)
                         {
-                            if (item.Value.Contains(property.Name) && !cells.Values.Contains(item.Key))
+                            bool isPropertyMergingExist = mergedHeader.Value.Contains(property.Name);
+
+                            if (isPropertyMergingExist)
                             {
-                                var propList = new List<PropertyInfo>();
-                                foreach (var name in item.Value)
+                                var propertiesList = new List<PropertyInfo>();
+                                foreach (var nameAfterMerge in mergedHeader.Value)
                                 {
-                                    var prop = properties.Where(x => x.Name == name).FirstOrDefault();
+                                    var prop = properties.Where(x => x.Name == nameAfterMerge).FirstOrDefault();
                                     if (prop != null)
-                                        propList.Add(prop);
+                                        propertiesList.Add(prop);
                                 }
-                                var stringBuilder = new StringBuilder();
-                                foreach (var prop in propList)
+                                var mergedString = new StringBuilder();
+                                foreach (var prop in propertiesList)
                                 {
                                     var propValue = prop.GetValue(entity);
-                                    stringBuilder.Append(propValue.ToString()).Append(_config.MergeDivider);
+                                    mergedString.Append(propValue.ToString()).Append(_config.MergeDivider);
                                 }
-                                stringBuilder.Remove(stringBuilder.Length - _config.MergeDivider.Length, _config.MergeDivider.Length);
 
-                                cells.Add(item.Key, stringBuilder.ToString());
-                                excludedColumnsByMerge.AddRange(item.Value);
+                                //Removing merge divider at the end of the string
+                                mergedString.Remove(mergedString.Length - _config.MergeDivider.Length, 
+                                                                            _config.MergeDivider.Length);
+
+                                cellsInRow.Add(mergedHeader.Key, mergedString.ToString());
+                                excludedColumnsByMerge.AddRange(mergedHeader.Value);
                                 break;
                             }
                         }
                     }
-                    if (!excludedColumnsByMerge.Contains(property.Name))
+                    isPropertyMerged = excludedColumnsByMerge.Contains(property.Name);
+
+                    if (!isPropertyMerged)
                     {
-                        string value = GetFormatedValue(entity, property);
-                        bool isContainKey = _config.Rename.ContainsKey(property.Name);
-                        string fieldName = isContainKey ? _config.Rename[property.Name] : property.Name;
-                        cells.Add(fieldName, value);
+                        string cellValue = GetFormatedValue(entity, property);
+                        bool isContainsKey = _config.Rename.ContainsKey(property.Name);
+                        string headerName = isContainsKey ? _config.Rename[property.Name] : property.Name;
+                        cellsInRow.Add(headerName, cellValue);
                     }
                 }
-                var sortedHeaders = SortByHeader(cells);
+                var sortedCells = SortByHeader(cellsInRow);
 
-                excludedColumnsByMerge = new List<string>();
-                foreach (var cell in sortedHeaders)
+                if (!string.IsNullOrEmpty(_config.SelectionColumnIndexerField))
+                {
+                    TagBuilder commandColumn = new TagBuilder("td");
+                    commandColumn.MergeAttribute("class", "command-column");
+
+                    if (sortedCells.ContainsKey(_config.SelectionColumnIndexerField))
+                    {
+                        commandColumn.MergeAttribute("data-row-indexer",
+                                                            sortedCells[_config.SelectionColumnIndexerField]);
+                    }
+                    else
+                    {
+                        var property = properties.Where(x => x.Name == _config.SelectionColumnIndexerField)
+                                                 .FirstOrDefault();
+                        commandColumn.MergeAttribute("data-row-indexer", property?.GetValue(entity).ToString());
+                        
+                    }
+                    if (_config.AllowMultipleSelection)
+                    {
+                        commandColumn.InnerHtml += @"<input id='checkbox" + entity.GetHashCode() + "' " +
+                                                    "class='checkbox' type='checkbox'>" +
+                                            "<label class='command-label' " +
+                                            "for='checkbox" + entity.GetHashCode() + "'></label>";
+                    }
+                    else
+                    {
+                        commandColumn.InnerHtml += @"<input id='checkbox" + entity.GetHashCode() + "' " +
+                                                    "class='checkbox' type='radio' name='radio'>" +
+                                            "<label class='command-label' " +
+                                            "for='checkbox" + entity.GetHashCode() + "'></label>";
+                    }
+
+                    tr.InnerHtml += commandColumn;
+                }
+                
+                foreach (var cell in sortedCells)
                 {
                     TagBuilder td = new TagBuilder("td");
                     td.MergeAttribute("class", SetAttribute(Tag.Td));
+                    
                     td.SetInnerText(cell.Value);
                     tr.InnerHtml += td;
                 }
@@ -289,8 +359,12 @@ namespace ElateTableFramework
 
             TagBuilder tr = new TagBuilder("tr");
             TagBuilder td = new TagBuilder("td");
-            td.MergeAttribute("colspan", _totalColumnCount.ToString());
+
+            bool isSelectionColumnExist = !string.IsNullOrEmpty(_config.SelectionColumnIndexerField);
+            var paginationRowWidth = isSelectionColumnExist ? _totalColumnCount + 1 : _totalColumnCount;
+            td.MergeAttribute("colspan", paginationRowWidth.ToString());
             td.MergeAttribute("class", " text-center pager-main-empty");
+
             td.SetInnerText(_config.MessageForEmptyTable);
             tr.InnerHtml = td.ToString();
             tbody.InnerHtml += tr;
@@ -309,28 +383,45 @@ namespace ElateTableFramework
             var currentPage = (int)Math.Ceiling((decimal)_config.PaginationConfig.Offset /
                                                     _config.PaginationConfig.MaxItemsInPage) + 1;
 
-            int[] pagesArray = GetPagesNumbersArray(totalPages, currentPage);
+            int[] pagesOutputArray = GetPaginationNumbersSequence(totalPages, currentPage);
 
             TagBuilder tr = new TagBuilder("tr");
             tr.MergeAttribute("data-pager", "true");
             tr.MergeAttribute("data-current-page", currentPage.ToString());
             tr.MergeAttribute("data-max-pages", _config.PaginationConfig.TotalPagesMax.ToString());
+
+            bool isSelectionColumnExist = !string.IsNullOrEmpty(_config.SelectionColumnIndexerField);
+
             TagBuilder td = new TagBuilder("td");
-            td.MergeAttribute("colspan", _totalColumnCount.ToString());
+            var paginationRowWidth = isSelectionColumnExist ? _totalColumnCount + 1 : _totalColumnCount;
+            td.MergeAttribute("colspan", paginationRowWidth.ToString());
+
             TagBuilder div = new TagBuilder("div");
             div.MergeAttribute("class", "col-md-12 text-right pager-main");
 
             if (currentPage > 1)
             {
-                div.InnerHtml += @"<a href='1'><div data-arrow='left' class='page-item'><i class='fa fa-angle-double-left glyphicon glyphicon-backward' aria-hidden='true'></i></div></a>";
-                div.InnerHtml += @"<a href='" + (currentPage - 1) + "'><div data-arrow='left' class='page-item'><i class='fa fa-angle-left glyphicon glyphicon-triangle-left' aria-hidden='true'></i></div></a>";
+                div.InnerHtml += @"<a href='1'><div data-arrow='left' class='page-item'>
+                                                  <i class='fa fa-angle-double-left 
+                                                        glyphicon glyphicon-backward' aria-hidden='true'></i>
+                                               </div></a>";
+
+                div.InnerHtml += @"<a href='" + (currentPage - 1) + "'>" +
+                                        "<div data-arrow='left' class='page-item'>"+
+                                            "<i class='fa fa-angle-left glyphicon glyphicon-triangle-left'" +
+                                                      "aria-hidden='true'></i></div></a>";
             }
             else
             {
-                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'><i class='fa fa-angle-double-left glyphicon glyphicon-backward' aria-hidden='true'></i></div>";
-                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'><i class='fa fa-angle-left glyphicon glyphicon glyphicon-triangle-left' aria-hidden='true'></i></div>";
+                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'>
+                                       <i class='fa fa-angle-double-left glyphicon glyphicon-backward' 
+                                                 aria-hidden='true'></i></div>";
+
+                div.InnerHtml += @"<div data-arrow='left' class='disabled-page-item'>
+                                       <i class='fa fa-angle-left glyphicon glyphicon glyphicon-triangle-left' 
+                                                 aria-hidden='true'></i></div>";
             }
-            foreach (var page in pagesArray)
+            foreach (var page in pagesOutputArray)
             {
                 if (page != currentPage)
                 {
@@ -346,18 +437,29 @@ namespace ElateTableFramework
             }
             if (currentPage < totalPages)
             {
-                div.InnerHtml += @"<a href='" + (currentPage + 1) + "'><div data-arrow='right' class='page-item'><i class='fa fa-angle-right glyphicon glyphicon-triangle-right' aria-hidden='true'></i></div></a>";
-                div.InnerHtml += @"<a href='" + totalPages + "'><div data-arrow='right' class='page-item'><i class='fa fa-angle-double-right glyphicon glyphicon-forward' aria-hidden='true'></i></div></a>";
-            }else if (currentPage == totalPages)
+                div.InnerHtml += @"<a href='" + (currentPage + 1) + "'>" +
+                                      "<div data-arrow='right' class='page-item'>" +
+                                      "<i class='fa fa-angle-right glyphicon glyphicon-triangle-right' " +
+                                                "aria-hidden='true'></i></div></a>";
+
+                div.InnerHtml += @"<a href='" + totalPages + "'>" +
+                                      "<div data-arrow='right' class='page-item'>" +
+                                            "<i class='fa fa-angle-double-right glyphicon glyphicon-forward' " +
+                                                      "aria-hidden='true'></i></div></a>";
+            }
+            else if (currentPage == totalPages)
             {
-                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'><i class='fa fa-angle-right glyphicon glyphicon-triangle-right' aria-hidden='true'></i></div>";
-                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'><i class='fa fa-angle-double-right glyphicon glyphicon-forward' aria-hidden='true'></i></div>";
+                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'>
+                                       <i class='fa fa-angle-right glyphicon glyphicon-triangle-right' 
+                                                 aria-hidden='true'></i></div>";
+
+                div.InnerHtml += @"<div data-arrow='right' class='disabled-page-item'>
+                                      <i class='fa fa-angle-double-right glyphicon glyphicon-forward' 
+                                                aria-hidden='true'></i></div>";
             }
             td.InnerHtml = div.ToString();
             tr.InnerHtml = td.ToString();
             return tr;
         }
-
-        
     }
 }

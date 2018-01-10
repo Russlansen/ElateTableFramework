@@ -4,23 +4,29 @@ var filteringFields = {};
 var dateFormat = "DD.MM.YYYY";
 var windowMinWidth = 650;
 var filterType = "";
+var checked = [];
 
 $(function () {
-    var headers = $("table thead tr td");
+    var headers = $("table thead tr td.elate-main-thead-td");
     var pager = $(".pager-main a");
     var filter = headers.find(".filter-button");
     var filterInput = headers.find(".filter-input");
     var filterSelect = headers.find(".filter-select");
     var sortField = $("table.elate-main-table").data("order-field");
-    orderByField = sortField != undefined ? sortField : headers.first().data("original-field-name");
+    var checkboxes = $(".command-column").find("input[type]");
+    var tableHeight = $("table.elate-main-table").height();
+    $("#loaderRotation").css({ top: (tableHeight / 2) - 45 });
+    orderByField = sortField !== undefined ? sortField : headers.first().data("original-field-name");
     orderType = $("table.elate-main-table").data("order-type");
     headers.click(switchArrows);
+    checkboxes.click(checkboxHandler);
     filter.click(function (event) { getFilters(event, true); });
     headers.click(function (event) { getTableBodyAjax(event, true, false); });
     pager.click(function (event) { getTableBodyAjax(event, false, false); });
     filterInput.on('input', function (event) { getTableBodyAjax(event, false, true); });
     filterSelect.change(selectFilterType);
     setDatepickerEvents();
+    refreshCheckboxes();
 });
 
 function getTableBodyAjax(event, isSorting, isFiltering) {
@@ -104,9 +110,19 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         url: table.data("callback"),
         method: "POST",
         data: Data,
+        beforeSend: function () {
+            $("#loaderRotation").css({ top: (table.height() / 2) });
+            $("#loaderRotation").show();
+        },
         success: function (data) {
             table.find(".elate-main-tbody").replaceWith(data);
             table.find(".pager-main a").click(function (event) { getTableBodyAjax(event, false, false); });
+            var checkboxes = $(".command-column").find("input[type]");
+            checkboxes.click(checkboxHandler);
+            refreshCheckboxes();
+        },
+        complete: function () {
+            $("#loaderRotation").hide();
         }
     });
 }
@@ -241,10 +257,10 @@ function switchArrows(event) {
         var isWide = $(window).width() > windowMinWidth;
         var downArrow = $(this).find('[data-sort="down"]');
         var upArrow = $(this).find('[data-sort="up"]');
-        if (upArrow.css('visibility') == 'hidden' && downArrow.css('visibility') == 'hidden' && isWide) {
+        if (upArrow.css('visibility') === 'hidden' && downArrow.css('visibility') === 'hidden' && isWide) {
             downArrow.attr("style", "visibility:visible");
         }
-        else if (downArrow.css('visibility') == 'hidden' && isWide) {
+        else if (downArrow.css('visibility') === 'hidden' && isWide) {
             downArrow.attr("style", "visibility:visible");
             upArrow.attr("style", "visibility:hidden");
         }
@@ -258,7 +274,7 @@ function switchArrows(event) {
 function setDatepickerEvents() {
     $('#datetimepicker, #datetimepicker-min, #datetimepicker-max').datetimepicker({
         format: dateFormat,
-        useCurrent: false,
+        useCurrent: false
     });
     moment.locale('en', {
         week: { dow: 1 }
@@ -310,4 +326,80 @@ function parseDate(date, isMinimum) {
     }
 
     return dateNew;
+}
+
+function checkboxHandler(event) {
+    var checkbox;
+    var headColumn = $("table.elate-main-table thead tr td.command-column");
+
+    if (event) {
+        checkbox = $(event.target);
+    }
+    else {
+        checkbox = headColumn.find("input[type]");
+    }
+   
+    if (checkbox.attr('id') === "checkboxMain") {
+        var thead = checkbox.closest("thead");
+        var commandColumnCells = thead.siblings('tbody').find('td.command-column');
+        var isAjaxExecuting = false;
+        if (checkbox.is(':checked')) {
+            commandColumnCells.find("input[type]").prop('checked', true);
+            $.ajax({
+                url: "Home/Selection",
+                method: "POST",
+                async: true,
+                data: {
+                    fieldName: headColumn.data("indexer-field")
+                },
+                beforeSend: function () {
+                    var isAjaxExecuting = true;
+                    $("#loaderRotation").show();
+                },
+                success: function (data) {
+                    checked = JSON.parse(data); 
+                    window.sessionStorage.setItem('elate-table-checked', checked);
+                },
+                complete: function () {
+                    var isAjaxExecuting = false;
+                    $("#loaderRotation").hide();
+                }
+            });
+        }
+        else {
+            checked = [];
+            commandColumnCells.find("input[type]").prop('checked', false);
+        }
+    }
+    else {
+        var valueOfIndexer = checkbox.closest('td').data('row-indexer');
+        if (checkbox.is(':checked')) {
+            if (checkbox.attr('type') === 'radio') {
+                checked = [];
+            }
+            checked.push(valueOfIndexer);    
+        }
+        else {
+            checked.splice(checked.indexOf(valueOfIndexer), 1);
+            var tbody = checkbox.closest("tbody");
+            var mainCheckboxCell = tbody.siblings('thead').find('td.command-column');
+            mainCheckboxCell.find("input[type]").prop('checked', false);
+        }
+    }
+    if (!isAjaxExecuting) {
+        window.sessionStorage.setItem('elate-table-checked', checked);
+    }
+}
+
+function refreshCheckboxes() {
+    var commandColumn = $("table tbody .command-column");
+
+    for (i = 0; i < commandColumn.length; i++) {
+        var commandColumnItem = $(commandColumn[i]);
+        for (j = 0; j < checked.length; j++) {
+            if (commandColumnItem.data('row-indexer') === checked[j]) {
+                commandColumnItem.find("input[type]").prop('checked', true);
+            }
+        } 
+    }
 }

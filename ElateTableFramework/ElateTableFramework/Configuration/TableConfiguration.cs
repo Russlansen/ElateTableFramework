@@ -26,6 +26,14 @@ namespace ElateTableFramework.Configuration
 
         public string CallbackAction { get; set; }
 
+        public string SelectionColumnIndexerField { get; set; }
+
+        public string SelectAllCallbackController { get; set; }
+
+        public string SelectAllCallbackAction { get; set; }
+
+        public bool AllowMultipleSelection { get; set; }
+
         public string CallbackController { get; set; }
 
         public Dictionary<Tag, string> SetClass { get; set; }
@@ -38,6 +46,7 @@ namespace ElateTableFramework.Configuration
         {
             MergeDivider = " ";
             RowsHighlight = false;
+            AllowMultipleSelection = true;
             Merge = new Dictionary<string, string[]>();
             MessageForEmptyTable = "Empty";
             ColorScheme = ColorScheme.Default;

@@ -10,9 +10,9 @@ using System.Dynamic;
 
 namespace ElateTableFramework
 {
-    public static class SQLPagination
+    public static class SQLHelper
     {
-        public static IEnumerable<T> GetPagination<T>(this IDbConnection db, PaginationConfig config, out int count)
+        public static IEnumerable<T> GetPagination<T>(this IDbConnection db, PaginationConfig config)
         {
             var mainQueryString = new StringBuilder($"SELECT * FROM {GetTableName<T>()}");
             var subQueryString = new StringBuilder();
@@ -99,7 +99,6 @@ namespace ElateTableFramework
                     }
                     catch (Exception)
                     {
-                        count = 0;
                         return new List<T>();
                     }
 
@@ -112,17 +111,17 @@ namespace ElateTableFramework
             {
                 if (!string.IsNullOrEmpty(subQueryString.ToString()))
                 {
-                    count = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()} {subQueryString}",
+                    config.TotalListLength = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()} {subQueryString}",
                                                                 (object)sqlParameters).FirstOrDefault();
                 }
                 else
                 {
-                    count = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()}").FirstOrDefault();
+                    config.TotalListLength = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()}").FirstOrDefault();
                 }
 
-                if (count <= config.Offset)
+                if (config.TotalListLength <= config.Offset)
                 {
-                    int page = count / (config.MaxItemsInPage + 1);
+                    int page = config.TotalListLength / (config.MaxItemsInPage + 1);
                     config.Offset = config.MaxItemsInPage * page;
                 }
 
@@ -132,7 +131,6 @@ namespace ElateTableFramework
             }
             catch (Exception)
             {
-                count = 0;
                 return new List<T>();
             }
         }
@@ -171,5 +169,36 @@ namespace ElateTableFramework
             }
             return tableName;
         }
+
+        public static string GetIndexerJsonArray<T>(this IDbConnection db, string fieldName = null)
+        {
+            string queryString;
+            if (string.IsNullOrEmpty(fieldName))
+            {
+                queryString = "DECLARE @Column varchar(max);" +
+                              "SET @Column = (SELECT kcu.COLUMN_NAME " +
+                              "FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS as tc " +
+                              "JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as kcu " +
+                              "ON kcu.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA " +
+                              "AND kcu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME " +
+                              "AND kcu.TABLE_SCHEMA = tc.TABLE_SCHEMA " +
+                              "AND kcu.TABLE_NAME = tc.TABLE_NAME " +
+                              "WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY')" +
+                             $"exec('SELECT ' + @Column + ' FROM  {GetTableName<T>()}')";
+            }
+            else
+            {
+                queryString = $"SELECT {fieldName} FROM  {GetTableName<T>()}";
+            }
+            try
+            {
+                var d = db.Query<int>(queryString);
+                return JsonConvert.SerializeObject(d);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        } 
     }
 }

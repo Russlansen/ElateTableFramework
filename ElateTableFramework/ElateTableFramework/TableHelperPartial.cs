@@ -9,7 +9,7 @@ namespace ElateTableFramework
 {
     public static partial class TableHelper
     {
-        private static int[] GetPagesNumbersArray(int totalPages, int currentPage)
+        private static int[] GetPaginationNumbersSequence(int totalPages, int currentPage)
         {
             var pagerConfig = _config.PaginationConfig;
 

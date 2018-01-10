@@ -12,7 +12,7 @@ using System.Web;
 
 namespace TestApplication.Models
 {
-    public class AutoRepository
+    public class AutoRepository : ElateTableRepository<Auto>
     {
         string connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
         public List<Auto> GetUsers()
@@ -25,12 +25,20 @@ namespace TestApplication.Models
             return auto;
         }
 
-        public IEnumerable<Auto> GetUsersPagination(PaginationConfig config, out int count)
+        public IEnumerable<Auto> GetPagination(PaginationConfig config)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {
-                return db.GetPagination<Auto>(config, out count);
+                return db.GetPagination<Auto>(config);
             }       
+        }
+
+        public string GetIndexerJsonArray(string fieldName = null)
+        {
+            using (IDbConnection db = new SqlConnection(connectionString))
+            {
+                return db.GetIndexerJsonArray<Auto>(fieldName);
+            }
         }
 
         public IEnumerable<Auto> GetUsersPagination(OrderType type, string col)
@@ -40,6 +48,5 @@ namespace TestApplication.Models
                 return db.GetPagination<Auto>(type, col);
             }
         }
-
     }
 }
