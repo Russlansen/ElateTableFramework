@@ -11,6 +11,6 @@ namespace ElateTableFramework
     {
         IEnumerable<T> GetPagination(PaginationConfig config);
 
-        string GetIndexerJsonArray(string fieldName = null);
+        string GetIndexerJsonArray(PaginationConfig config, string fieldName = null);
     }
 }

@@ -119,23 +119,26 @@ namespace ElateTableFramework
             var columnsHeadersAndTypesSorted = SortByHeader(columnsHeadersAndTypes);
             _totalColumnCount = columnsHeadersAndTypesSorted.Count();
 
-            var isSelectAllExist = !string.IsNullOrEmpty(_config.SelectAllCallbackController) &&
-                                   !string.IsNullOrEmpty(_config.SelectAllCallbackAction);
+            var serviceColumn = _config.ServiceColumnsConfig;
 
-            if (!string.IsNullOrEmpty(_config.SelectionColumnIndexerField))
+            var isSelectAllExist = !string.IsNullOrEmpty(serviceColumn.SelectAllCallbackController) &&
+                                   !string.IsNullOrEmpty(serviceColumn.SelectAllCallbackAction);
+
+            if (!string.IsNullOrEmpty(serviceColumn.IndexerField) && serviceColumn.SelectionColumn)
             {
                 TagBuilder selectionColumn = new TagBuilder("td");
                 selectionColumn.MergeAttribute("class", "command-column");
-                selectionColumn.MergeAttribute("data-indexer-field", _config.SelectionColumnIndexerField);
+                selectionColumn.MergeAttribute("data-indexer-field", serviceColumn.IndexerField);
                 selectionColumn.MergeAttribute("style", "max-width:2%; width:2%");
 
-                if (isSelectAllExist && _config.AllowMultipleSelection)
+                if (isSelectAllExist && serviceColumn.AllowMultipleSelection)
                 {
                     selectionColumn.InnerHtml += @"<input id='checkboxMain' class='checkbox' type='checkbox'>
                                                <label class='command-label' for='checkboxMain'></label>";
                 }
                 
                 trHead.InnerHtml += selectionColumn;
+                _totalColumnCount++;
             }
             
             foreach (var header in columnsHeadersAndTypesSorted.Keys)
@@ -146,7 +149,6 @@ namespace ElateTableFramework
                 td.MergeAttribute("style", CalculateColumnWidth(header));
                 bool isMerged = _config.Merge != null && _config.Merge.ContainsKey(header);
                 
-
                 if (isMerged)
                 {
                     td.MergeAttribute("data-original-field-name", _config.Merge[header].FirstOrDefault());
@@ -228,6 +230,17 @@ namespace ElateTableFramework
 
                 trHead.InnerHtml += td;
             }
+            var serviceButtons = _config.ServiceColumnsConfig.ServiceButtons;
+
+            if (serviceButtons !=null && serviceButtons.Any())
+            {
+                TagBuilder column = new TagBuilder("td");
+                column.MergeAttribute("class", "service-column");
+                column.MergeAttribute("style", CalculateColumnWidth("service"));
+                trHead.InnerHtml += column;
+                _totalColumnCount++;
+            }
+
             thead.InnerHtml += trHead;
 
             return thead;
@@ -298,35 +311,37 @@ namespace ElateTableFramework
                     }
                 }
                 var sortedCells = SortByHeader(cellsInRow);
+                var serviceColumn = _config.ServiceColumnsConfig;
 
-                if (!string.IsNullOrEmpty(_config.SelectionColumnIndexerField))
+                if (!string.IsNullOrEmpty(serviceColumn.IndexerField) && serviceColumn.SelectionColumn)
                 {
                     TagBuilder commandColumn = new TagBuilder("td");
                     commandColumn.MergeAttribute("class", "command-column");
 
-                    if (sortedCells.ContainsKey(_config.SelectionColumnIndexerField))
+                    if (sortedCells.ContainsKey(serviceColumn.IndexerField))
                     {
-                        commandColumn.MergeAttribute("data-row-indexer",
-                                                            sortedCells[_config.SelectionColumnIndexerField]);
+                        commandColumn.MergeAttribute("data-row-indexer", 
+                                                                    sortedCells[serviceColumn.IndexerField]);
                     }
                     else
                     {
-                        var property = properties.Where(x => x.Name == _config.SelectionColumnIndexerField)
+                        var property = properties.Where(x => x.Name == serviceColumn.IndexerField)
                                                  .FirstOrDefault();
+
                         commandColumn.MergeAttribute("data-row-indexer", property?.GetValue(entity).ToString());
                         
                     }
-                    if (_config.AllowMultipleSelection)
+                    if (serviceColumn.AllowMultipleSelection)
                     {
                         commandColumn.InnerHtml += @"<input id='checkbox" + entity.GetHashCode() + "' " +
-                                                    "class='checkbox' type='checkbox'>" +
+                                                    "class='checkbox item-checkbox' type='checkbox'>" +
                                             "<label class='command-label' " +
                                             "for='checkbox" + entity.GetHashCode() + "'></label>";
                     }
                     else
                     {
                         commandColumn.InnerHtml += @"<input id='checkbox" + entity.GetHashCode() + "' " +
-                                                    "class='checkbox' type='radio' name='radio'>" +
+                                                    "class='checkbox item-checkbox' type='radio' name='radio'>" +
                                             "<label class='command-label' " +
                                             "for='checkbox" + entity.GetHashCode() + "'></label>";
                     }
@@ -341,6 +356,42 @@ namespace ElateTableFramework
                     
                     td.SetInnerText(cell.Value);
                     tr.InnerHtml += td;
+                }
+
+                var serviceButtons = _config.ServiceColumnsConfig.ServiceButtons;
+
+                if (serviceButtons != null && serviceButtons.Any())
+                {
+                    TagBuilder cell = new TagBuilder("td");
+                    cell.MergeAttribute("class", "service-column");
+                    foreach (var serviceButton in serviceButtons)
+                    {
+                        var callback = serviceButton.Value.CallbackController + '/' +
+                                       serviceButton.Value.CallbackAction;
+
+                        TagBuilder button = new TagBuilder("input");
+                        button.MergeAttribute("class", "btn btn-default");
+                        button.MergeAttribute("style", "margin:1px");
+                        button.MergeAttribute("type", "button");
+                        button.MergeAttribute("value", serviceButton.Key);
+                        button.MergeAttribute("data-callback", callback);
+                        if (serviceButton.Value.IsEditRow)
+                        {
+                            button.MergeAttribute("data-edit-btn", "true");
+                        }
+                        cell.InnerHtml += button;
+                    }
+                    if (sortedCells.ContainsKey(serviceColumn.IndexerField))
+                    {
+                        cell.MergeAttribute("data-row-indexer", sortedCells[serviceColumn.IndexerField]);
+                    }
+                    else
+                    {
+                        var property = properties.Where(x => x.Name == serviceColumn.IndexerField)
+                                                 .FirstOrDefault();
+                        cell.MergeAttribute("data-row-indexer", property?.GetValue(entity).ToString());
+                    }
+                    tr.InnerHtml += cell;
                 }
                 tbody.InnerHtml += tr;
             }
@@ -359,10 +410,10 @@ namespace ElateTableFramework
 
             TagBuilder tr = new TagBuilder("tr");
             TagBuilder td = new TagBuilder("td");
+            var serviceColumn = _config.ServiceColumnsConfig;
 
-            bool isSelectionColumnExist = !string.IsNullOrEmpty(_config.SelectionColumnIndexerField);
-            var paginationRowWidth = isSelectionColumnExist ? _totalColumnCount + 1 : _totalColumnCount;
-            td.MergeAttribute("colspan", paginationRowWidth.ToString());
+            bool isSelectionColumnExist = !string.IsNullOrEmpty(serviceColumn.IndexerField);
+            td.MergeAttribute("colspan", _totalColumnCount.ToString());
             td.MergeAttribute("class", " text-center pager-main-empty");
 
             td.SetInnerText(_config.MessageForEmptyTable);
@@ -389,12 +440,12 @@ namespace ElateTableFramework
             tr.MergeAttribute("data-pager", "true");
             tr.MergeAttribute("data-current-page", currentPage.ToString());
             tr.MergeAttribute("data-max-pages", _config.PaginationConfig.TotalPagesMax.ToString());
+            var serviceColumn = _config.ServiceColumnsConfig;
 
-            bool isSelectionColumnExist = !string.IsNullOrEmpty(_config.SelectionColumnIndexerField);
+            bool isSelectionColumnExist = !string.IsNullOrEmpty(serviceColumn.IndexerField);
 
             TagBuilder td = new TagBuilder("td");
-            var paginationRowWidth = isSelectionColumnExist ? _totalColumnCount + 1 : _totalColumnCount;
-            td.MergeAttribute("colspan", paginationRowWidth.ToString());
+            td.MergeAttribute("colspan", _totalColumnCount.ToString());
 
             TagBuilder div = new TagBuilder("div");
             div.MergeAttribute("class", "col-md-12 text-right pager-main");

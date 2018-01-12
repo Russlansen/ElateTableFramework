@@ -33,11 +33,11 @@ namespace TestApplication.Models
             }       
         }
 
-        public string GetIndexerJsonArray(string fieldName = null)
+        public string GetIndexerJsonArray(PaginationConfig config, string fieldName = null)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {
-                return db.GetIndexerJsonArray<Auto>(fieldName);
+                return db.GetIndexerJsonArray<Auto>(config, fieldName);
             }
         }
 

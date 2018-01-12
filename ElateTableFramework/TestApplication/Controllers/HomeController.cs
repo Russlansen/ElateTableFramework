@@ -37,10 +37,15 @@ namespace TestApplication.Controllers
             return TableHelper.ElateGetTableBody(list, config);
         }
 
-        public string Selection()
-        {
+        public string Selection(PaginationConfig config)
+        {     
             var repos = new AutoRepository();
-            return repos.GetIndexerJsonArray();
+            return repos.GetIndexerJsonArray(config);
+        }
+
+        public void Delete(string indexer)
+        {
+
         }
 
         private TableConfiguration SetOptions(PaginationConfig config)
@@ -53,10 +58,18 @@ namespace TestApplication.Controllers
                 CallbackController = "Home",
                 CallbackAction = "PaginationAsync",
                 //Exclude = new List<string>() { "Id" },
-                SelectionColumnIndexerField = "Id",
-                SelectAllCallbackController = "Home",
-                SelectAllCallbackAction = "Selection",
-                AllowMultipleSelection = true,
+                ServiceColumnsConfig = new ServiceColumnsConfig()
+                {
+                    SelectionColumn = true,
+                    IndexerField = "Id",
+                    SelectAllCallbackController = "Home",
+                    SelectAllCallbackAction = "Selection",
+                    AllowMultipleSelection = true,
+                    ServiceButtons = new Dictionary<string, ServiceColumnCallback>()
+                    {
+                        { "Edit", new ServiceColumnCallback("Home", "Delete", true) },
+                    }
+                },                
                 ColumnFormat = new Dictionary<string, string>()
                 {
                     { "Date","dd.MM.yyyy"},

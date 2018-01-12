@@ -5,26 +5,38 @@ var dateFormat = "DD.MM.YYYY";
 var windowMinWidth = 650;
 var filterType = "";
 var checked = [];
+var globalAjaxData = {};
 
 $(function () {
+    window.sessionStorage.removeItem('elate-table-checked');
     var headers = $("table thead tr td.elate-main-thead-td");
-    var pager = $(".pager-main a");
-    var filter = headers.find(".filter-button");
-    var filterInput = headers.find(".filter-input");
-    var filterSelect = headers.find(".filter-select");
-    var sortField = $("table.elate-main-table").data("order-field");
-    var checkboxes = $(".command-column").find("input[type]");
-    var tableHeight = $("table.elate-main-table").height();
-    $("#loaderRotation").css({ top: (tableHeight / 2) - 45 });
-    orderByField = sortField !== undefined ? sortField : headers.first().data("original-field-name");
-    orderType = $("table.elate-main-table").data("order-type");
     headers.click(switchArrows);
-    checkboxes.click(checkboxHandler);
-    filter.click(function (event) { getFilters(event, true); });
     headers.click(function (event) { getTableBodyAjax(event, true, false); });
+
+    var pager = $(".pager-main a");
     pager.click(function (event) { getTableBodyAjax(event, false, false); });
+
+    var filter = headers.find(".filter-button");
+    filter.click(function (event) { getFilters(event, true); });
+
+    var filterInput = headers.find(".filter-input");
     filterInput.on('input', function (event) { getTableBodyAjax(event, false, true); });
+
+    var filterSelect = headers.find(".filter-select");
     filterSelect.change(selectFilterType);
+
+    var sortField = $("table.elate-main-table").data("order-field");
+    orderByField = sortField !== undefined ? sortField : headers.first().data("original-field-name");
+
+    var checkboxes = $(".command-column").find("input");
+    checkboxes.click(checkboxHandler);
+
+    var buttons = $(".service-column").find("input[type='button']");
+    buttons.click(serviceButtonHandler);
+
+    var tableHeight = $("table.elate-main-table").height();
+    $("#loaderRotation").css({ top: tableHeight / 2 - 45 });
+    orderType = $("table.elate-main-table").data("order-type");
     setDatepickerEvents();
     refreshCheckboxes();
 });
@@ -84,7 +96,7 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         }
     }
     var page = "";
-    var Data = {
+    globalAjaxData = {
         OrderByField: orderByField,
         OrderType: orderType,
         Filters: filteringFields,
@@ -95,33 +107,35 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
     if (isFiltering) {
         page = currentPage;
         filteringFields[fieldName] = JSON.stringify(filterData);
-        Data.Filters = filteringFields;  
+        globalAjaxData.Filters = filteringFields;  
     }
     else if (isSorting) {
         page = currentPage;
-        Data.Filters = filteringFields;
+        globalAjaxData.Filters = filteringFields;
     } else {
         page = link.attr("href");
-        Data.Filters = filteringFields;
+        globalAjaxData.Filters = filteringFields;
     }
-    Data.Offset = tbody.data('max-items') * (page - 1);
+    globalAjaxData.Offset = tbody.data('max-items') * (page - 1);
     
     $.ajax({
         url: table.data("callback"),
         method: "POST",
-        data: Data,
+        data: globalAjaxData,
         beforeSend: function () {
-            $("#loaderRotation").css({ top: (table.height() / 2) });
+            $("#loaderRotation").css({ top: table.height() / 2 });
             $("#loaderRotation").show();
         },
         success: function (data) {
             table.find(".elate-main-tbody").replaceWith(data);
-            table.find(".pager-main a").click(function (event) { getTableBodyAjax(event, false, false); });
-            var checkboxes = $(".command-column").find("input[type]");
-            checkboxes.click(checkboxHandler);
-            refreshCheckboxes();
+            table.find(".pager-main a").click(function (event) { getTableBodyAjax(event, false, false); });  
         },
         complete: function () {
+            var itemCheckboxes = $(".command-column").find("input[class='checkbox item-checkbox']");
+            itemCheckboxes.click(checkboxHandler);
+            refreshCheckboxes();
+            var buttons = $(".service-column").find("input[type='button']");
+            buttons.click(serviceButtonHandler);
             $("#loaderRotation").hide();
         }
     });
@@ -236,6 +250,10 @@ function clearFilter(event) {
         success: function (data) {
             table.find(".elate-main-tbody").replaceWith(data);
             table.find(".pager-main a").click(getTableBodyAjax);
+        },
+        complete: function () {
+            var mainCheckbox = $(".command-column").find("input[id='checkboxMain']");
+            mainCheckbox.prop("checked", false);
         }
     });
 }
@@ -328,7 +346,7 @@ function parseDate(date, isMinimum) {
     return dateNew;
 }
 
-function checkboxHandler(event) {
+function checkboxHandler(event, isMain) {
     var checkbox;
     var headColumn = $("table.elate-main-table thead tr td.command-column");
 
@@ -350,7 +368,8 @@ function checkboxHandler(event) {
                 method: "POST",
                 async: true,
                 data: {
-                    fieldName: headColumn.data("indexer-field")
+                    fieldName: headColumn.data("indexer-field"),
+                    config: globalAjaxData
                 },
                 beforeSend: function () {
                     var isAjaxExecuting = true;
@@ -402,4 +421,23 @@ function refreshCheckboxes() {
             }
         } 
     }
+}
+
+function serviceButtonHandler(event) {
+    var target = $(event.target);
+    var indexer = target.closest('td').data('row-indexer');
+    if (target.data("edit-btn") === true) {
+        $('#myModal').modal('show');
+    }
+    else {
+        $.ajax({
+            url: target.data("callback"),
+            data: {
+                indexer: indexer
+            },
+            success: function () {
+                getTableBodyAjax(event, false, true);
+            }
+        });
+    } 
 }

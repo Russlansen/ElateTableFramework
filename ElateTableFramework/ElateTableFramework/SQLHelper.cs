@@ -12,11 +12,10 @@ namespace ElateTableFramework
 {
     public static class SQLHelper
     {
-        public static IEnumerable<T> GetPagination<T>(this IDbConnection db, PaginationConfig config)
+        private static StringBuilder GetQueryString<T>(PaginationConfig config, out dynamic sqlParameters)
         {
-            var mainQueryString = new StringBuilder($"SELECT * FROM {GetTableName<T>()}");
-            var subQueryString = new StringBuilder();
-            dynamic sqlParameters = new ExpandoObject();
+            var queryString = new StringBuilder();
+            sqlParameters = new ExpandoObject();
 
             if (string.IsNullOrEmpty(config.OrderByField))
             {
@@ -28,106 +27,96 @@ namespace ElateTableFramework
             {
                 var filterCount = 0;
                 foreach (var filter in config.Filters)
-                {                 
-                    try
+                {
+                    var filters = JsonConvert.DeserializeObject<string[]>(filter.Value);
+
+                    if (filters.Count() == 3)
                     {
-                        var filters = JsonConvert.DeserializeObject<string[]>(filter.Value);
+                        var min = filters[0];
+                        var max = filters[1];
 
-                        if (filters.Count() == 3)
+                        var isEmpty = string.IsNullOrEmpty(min) && string.IsNullOrEmpty(max);
+                        if (filterCount > 0 && filterCount < config.Filters.Count && !isEmpty)
+                            queryString.Append(" AND");
+
+                        if (filterCount == 0 && !isEmpty) queryString.Append(" WHERE");
+
+                        ((IDictionary<String, Object>)sqlParameters).Add("Min" + filterCount, min);
+                        ((IDictionary<String, Object>)sqlParameters).Add("Max" + filterCount, max);
+
+                        if (!string.IsNullOrEmpty(min) && !string.IsNullOrEmpty(max))
                         {
-                            var min = filters[0];
-                            var max = filters[1];
-
-                            var isEmpty = string.IsNullOrEmpty(min) && string.IsNullOrEmpty(max);
-                            if (filterCount > 0 && filterCount < config.Filters.Count && !isEmpty)
-                                subQueryString.Append(" AND");
-
-                            if (filterCount == 0 && !isEmpty) subQueryString.Append(" WHERE");
-
-                            ((IDictionary<String, Object>)sqlParameters).Add("Min" + filterCount, min);
-                            ((IDictionary<String, Object>)sqlParameters).Add("Max" + filterCount, max);
-
-                            if (!string.IsNullOrEmpty(min) && !string.IsNullOrEmpty(max))
-                            {
-                                subQueryString.Append($" [{filter.Key}] >= @Min{filterCount} AND" +
-                                                      $" [{filter.Key}] <= @Max{filterCount}");
-                            }
-                            else if (!string.IsNullOrEmpty(min) && string.IsNullOrEmpty(max))
-                            {
-                                subQueryString.Append($" [{filter.Key}] >= @Min{filterCount}");
-                            }
-                            else if (string.IsNullOrEmpty(min) && !string.IsNullOrEmpty(max))
-                            {
-                                subQueryString.Append($" [{filter.Key}] <= @Max{filterCount}");
-                            }
-                            else continue;
+                            queryString.Append($" [{filter.Key}] >= @Min{filterCount} AND" +
+                                                  $" [{filter.Key}] <= @Max{filterCount}");
                         }
-                        else if (filters.Count() == 2)
+                        else if (!string.IsNullOrEmpty(min) && string.IsNullOrEmpty(max))
                         {
-                            var value = filters[0];
-
-                            if (string.IsNullOrEmpty(value))
-                                continue;
-                            else if (filterCount > 0 && filterCount < config.Filters.Count)
-                                subQueryString.Append(" AND");
-
-                            
-                            if (filterCount == 0) subQueryString.Append(" WHERE");
-                            switch (filters[1])
-                            {
-                                case "begins":
-                                    {
-                                        subQueryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
-                                        ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, value + "%%");
-                                        break;
-                                    }
-                                case "contains":
-                                    {
-                                        subQueryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
-                                        ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, "%%" + value + "%%");
-                                        break;
-                                    }
-                                default:
-                                    {
-                                        subQueryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
-                                        ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, value);
-                                        break;
-                                    }
-                            }
+                            queryString.Append($" [{filter.Key}] >= @Min{filterCount}");
+                        }
+                        else if (string.IsNullOrEmpty(min) && !string.IsNullOrEmpty(max))
+                        {
+                            queryString.Append($" [{filter.Key}] <= @Max{filterCount}");
                         }
                         else continue;
                     }
-                    catch (Exception)
+                    else if (filters.Count() == 2)
                     {
-                        return new List<T>();
-                    }
+                        var value = filters[0];
 
+                        if (string.IsNullOrEmpty(value))
+                            continue;
+                        else if (filterCount > 0 && filterCount < config.Filters.Count)
+                            queryString.Append(" AND");
+
+
+                        if (filterCount == 0) queryString.Append(" WHERE");
+                        switch (filters[1])
+                        {
+                            case "begins":
+                                {
+                                    queryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
+                                    ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, value + "%%");
+                                    break;
+                                }
+                            case "contains":
+                                {
+                                    queryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
+                                    ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, "%%" + value + "%%");
+                                    break;
+                                }
+                            default:
+                                {
+                                    queryString.Append($" [{filter.Key}] LIKE @Value{filterCount}");
+                                    ((IDictionary<String, Object>)sqlParameters).Add("Value" + filterCount, value);
+                                    break;
+                                }
+                        }
+                    }
+                    else continue;
                     filterCount++;
                 }
             }
-            mainQueryString.Append(subQueryString);
-
+            return queryString;
+        }
+        public static IEnumerable<T> GetPagination<T>(this IDbConnection db, PaginationConfig config)
+        {
+            var queryString = new StringBuilder($"SELECT* FROM { GetTableName<T>()}"); 
+            var subQueryString = GetQueryString<T>(config, out dynamic sqlParameters); 
+           
             try
             {
-                if (!string.IsNullOrEmpty(subQueryString.ToString()))
-                {
-                    config.TotalListLength = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()} {subQueryString}",
-                                                                (object)sqlParameters).FirstOrDefault();
-                }
-                else
-                {
-                    config.TotalListLength = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()}").FirstOrDefault();
-                }
+                config.TotalListLength = db.Query<int>($"SELECT COUNT (*) FROM {GetTableName<T>()} {subQueryString}",
+                                                            (object)sqlParameters).FirstOrDefault();
 
                 if (config.TotalListLength <= config.Offset)
                 {
                     int page = config.TotalListLength / (config.MaxItemsInPage + 1);
                     config.Offset = config.MaxItemsInPage * page;
                 }
-
-                mainQueryString.Append($" ORDER BY [{config.OrderByField}] {config.OrderType} OFFSET {config.Offset} " +
+                queryString.Append(subQueryString);
+                queryString.Append($" ORDER BY [{config.OrderByField}] {config.OrderType} OFFSET {config.Offset} " +
                            $"ROWS FETCH NEXT {config.MaxItemsInPage} ROWS ONLY");
-                return db.Query<T>(mainQueryString.ToString(), (object)sqlParameters).ToList();
+                return db.Query<T>(queryString.ToString(), (object)sqlParameters).ToList();
             }
             catch (Exception)
             {
@@ -170,34 +159,33 @@ namespace ElateTableFramework
             return tableName;
         }
 
-        public static string GetIndexerJsonArray<T>(this IDbConnection db, string fieldName = null)
+        public static string GetIndexerJsonArray<T>(this IDbConnection db, PaginationConfig config, string fieldName = null)
         {
-            string queryString;
+            var queryString = new StringBuilder();
+            var subQueryString = GetQueryString<T>(config, out dynamic sqlParameters);
             if (string.IsNullOrEmpty(fieldName))
             {
-                queryString = "DECLARE @Column varchar(max);" +
-                              "SET @Column = (SELECT kcu.COLUMN_NAME " +
-                              "FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS as tc " +
-                              "JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as kcu " +
-                              "ON kcu.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA " +
-                              "AND kcu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME " +
-                              "AND kcu.TABLE_SCHEMA = tc.TABLE_SCHEMA " +
-                              "AND kcu.TABLE_NAME = tc.TABLE_NAME " +
-                              "WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY')" +
-                             $"exec('SELECT ' + @Column + ' FROM  {GetTableName<T>()}')";
+                var fieldNameQueryString = $"SELECT kcu.COLUMN_NAME " +
+                                            "FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS as tc " +
+                                            "JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as kcu " +
+                                            "ON kcu.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA " +
+                                            "WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'";
+
+                fieldName = db.Query<string>(fieldNameQueryString).FirstOrDefault();
+                queryString.Append($"SELECT {fieldName} FROM {GetTableName<T>()}{subQueryString}");
             }
             else
             {
-                queryString = $"SELECT {fieldName} FROM  {GetTableName<T>()}";
+                queryString.Append($"SELECT {fieldName} FROM {GetTableName<T>()}{subQueryString}");
             }
             try
             {
-                var d = db.Query<int>(queryString);
-                return JsonConvert.SerializeObject(d);
+                var indexerArray = db.Query<int>(queryString.ToString(), (object)sqlParameters);
+                return JsonConvert.SerializeObject(indexerArray);
             }
             catch (Exception)
             {
-                return null;
+                return "" ;
             }
         } 
     }
