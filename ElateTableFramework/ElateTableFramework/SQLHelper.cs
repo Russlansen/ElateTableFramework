@@ -124,6 +124,12 @@ namespace ElateTableFramework
             }
         }
 
+        public static IEnumerable<string> GetUniqueItems<T>(this IDbConnection db, string field)
+        {
+            var queryString = new StringBuilder($"SELECT DISTINCT[{field}] FROM { GetTableName<T>()}");    
+            return db.Query<string>(queryString.ToString());
+        }
+
         public static IEnumerable<T> GetPagination<T>(this IDbConnection db, OrderType type, string columnName)
         {
             var mainQueryString = $"SELECT * FROM {GetTableName<T>()} ORDER BY [{columnName}] {type}";

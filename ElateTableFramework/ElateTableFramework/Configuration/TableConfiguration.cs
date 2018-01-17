@@ -30,6 +30,8 @@ namespace ElateTableFramework.Configuration
 
         public string CallbackController { get; set; }
 
+        public Dictionary<string, string[]> FieldsForCombobox { get; set; }
+
         public Dictionary<Tag, string> SetClass { get; set; }
 
         public bool RowsHighlight { get; set; }
@@ -40,7 +42,7 @@ namespace ElateTableFramework.Configuration
         {
             MergeDivider = " ";
             RowsHighlight = false;
-            ServiceColumnsConfig = new ServiceColumnsConfig() { AllowMultipleSelection = true };
+            ServiceColumnsConfig = new ServiceColumnsConfig();
             Merge = new Dictionary<string, string[]>();
             MessageForEmptyTable = "Empty";
             ColorScheme = ColorScheme.Default;

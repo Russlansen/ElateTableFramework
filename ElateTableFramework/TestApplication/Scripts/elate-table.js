@@ -51,8 +51,9 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         return;
     } 
     if (!target.hasClass("elate-main-thead-td") && event.type === "click" &&
-        !target.closest('div').hasClass("page-item") &&
-        !target.closest('a').hasClass("sorting-links"))
+        !target.closest('div').hasClass("page-item")   &&
+        !target.closest('a').hasClass("sorting-links") &&
+        !target.hasClass("service-button"))
     {
         return;
     }
@@ -83,7 +84,12 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
             filterData = [min, max, filterType];
         }
 
-    } else {
+    }
+    else if (columnType === "enum" || columnType === "combo-box") {
+        var option = target.find("option:selected");
+        filterData = [option.val(), "equals"];
+    }
+    else {
         var div = target.closest("div");
         var input = target.closest("td").find("input.filter-input");
         if (div.hasClass("range-container")) {
@@ -254,6 +260,8 @@ function clearFilter(event) {
         complete: function () {
             var mainCheckbox = $(".command-column").find("input[id='checkboxMain']");
             mainCheckbox.prop("checked", false);
+            var buttons = $(".service-column").find("input[type='button']");
+            buttons.click(serviceButtonHandler);
         }
     });
 }
@@ -309,41 +317,6 @@ function setDatepickerEvents() {
         $('#datetimepicker-min').data("DateTimePicker").maxDate(event.date);
         getTableBodyAjax(event, false, true);
     });
-}
-
-function parseDate(date, isMinimum) {
-    var formatArray = dateFormat.split('.');
-    var dateArray = date.split('.');
-    var dateNew = new Date;
-    for (i = 0; i < formatArray.length; i++) {
-        switch (formatArray[i].toLowerCase()) {
-            case "dd": {
-                dateNew.setDate(dateArray[i]);
-                break;
-            }
-            case "mm": {
-                dateNew.setMonth(dateArray[i] - 1);
-                break;
-            }
-            case "yyyy": {
-                dateNew.setFullYear(dateArray[i]);
-            }
-        }
-    }
-    if (isMinimum) {
-        dateNew.setUTCHours(0);
-        dateNew.setMinutes(0);
-        dateNew.setSeconds(0);
-        dateNew.setMilliseconds(0);
-    }
-    else {
-        dateNew.setUTCHours(23);
-        dateNew.setMinutes(59);
-        dateNew.setSeconds(59);
-        dateNew.setMilliseconds(999);
-    }
-
-    return dateNew;
 }
 
 function checkboxHandler(event, isMain) {
@@ -427,17 +400,126 @@ function serviceButtonHandler(event) {
     var target = $(event.target);
     var indexer = target.closest('td').data('row-indexer');
     if (target.data("edit-btn") === true) {
-        $('#myModal').modal('show');
+        var row = target.closest("tr");
+        var cells = row.find(".elate-main-td");
+        var headers = row.closest("tbody").siblings("thead").find(".elate-main-thead-td");
+        for (i = 0; i < cells.length; i++) {
+            var text = cells[i].innerText;
+            var arr = text.split('\u2063'); // "\u2063" - invisible divider
+            var type = $(headers[i]).data("column-type");
+            if (arr.length > 1) {
+                arr = arr.filter(function (val) { return val.indexOf(" ") });
+                var mergedColumns = $(headers[i]).data("merged-with").split(",");
+                var mergedTypes = $(headers[i]).data("merged-types").split(",");
+                for (j = 0; j < mergedColumns.length; j++) {
+                    var input = $('#editModal').find('input[id=' + mergedColumns[j] + ']');
+                    input.val(arr[j]);
+                    input.attr("type", mergedTypes[j] !== 'date-time' ? mergedTypes[j] : "date" );
+                }   
+            }
+            else {
+                var input = $('#editModal').find('input[id=' + $(headers[i]).data("original-field-name") + ']');
+                input.attr("type", type !== 'date-time' ? type : "date");
+                if (type === 'date-time') {
+                    var date = parseDate(text, true);
+                    var dateISO = date.toISOString();
+                    var outputDate = dateISO.replace("T00:00:00.000Z", "");
+                    input.val(outputDate);
+                }
+                else if (type === 'enum' || type === 'combo-box') {
+                    var select = $('#editModal').find('select[id=' + $(headers[i]).data("original-field-name") + ']');
+                    var options = select.children();
+        
+                    for (var k = 0; k < options.length; k++) {
+                        if (options[k].text === text) {
+                            $(options).removeAttr('selected');
+                            $(options[k]).prop('selected', true);
+                            break;
+                        }
+                    }
+                }
+                else {
+                    input.val(text);
+                }
+            }  
+        }
+        $("#editForm").on("submit", function (localEvent) {
+            localEvent.preventDefault();
+            var data = $(this).serialize();
+            $.ajax({
+                url: target.data("callback"),
+                method: 'POST',
+                data: data,
+                success: function () {
+                    getTableBodyAjax(event, false, true);
+                },
+                complete: function () {
+                    $('#editModal').modal('hide');
+                }
+            });
+        });
+        $('#editModal').modal('show');
+        $('#editModal').on('hidden.bs.modal', function () {
+            $("#editForm").off("submit");
+        })
+    }
+    else if (target.data("delete-btn") === true) {
+        $('#deleteButton').off("click");
+        $('#deleteModal').modal('show');
+        $('#deleteButton').click(function () { serviceButtonSendAjax(event, indexer) });
     }
     else {
-        $.ajax({
-            url: target.data("callback"),
-            data: {
-                indexer: indexer
-            },
-            success: function () {
-                getTableBodyAjax(event, false, true);
-            }
-        });
+        serviceButtonSendAjax(event, indexer);
     } 
+}
+
+function parseDate(date, isMinimum) {
+    var formatArray = dateFormat.split('.');
+    var dateArray = date.split('.');
+    var dateNew = new Date;
+    for (k = 0; k < formatArray.length; k++) {
+        switch (formatArray[k].toLowerCase()) {
+            case "dd": {
+                dateNew.setDate(dateArray[k]);
+                break;
+            }
+            case "mm": {
+                dateNew.setMonth(dateArray[k] - 1);
+                break;
+            }
+            case "yyyy": {
+                dateNew.setFullYear(dateArray[k]);
+            }
+        }
+    }
+    if (isMinimum) {
+        dateNew.setUTCHours(0);
+        dateNew.setMinutes(0);
+        dateNew.setSeconds(0);
+        dateNew.setMilliseconds(0);
+    }
+    else {
+        dateNew.setUTCHours(23);
+        dateNew.setMinutes(59);
+        dateNew.setSeconds(59);
+        dateNew.setMilliseconds(999);
+    }
+
+    return dateNew;
+}
+
+function serviceButtonSendAjax(event, indexer) {
+    var target = $(event.target);
+    $.ajax({
+        url: target.data("callback"),
+        data: {
+            indexer: indexer
+        },
+        success: function () {
+            getTableBodyAjax(event, false, true);
+        },
+        complete: function () {
+            $('#deleteModal').modal('hide');
+        }
+    });
 }

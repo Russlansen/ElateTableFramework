@@ -12,7 +12,7 @@ using System.Web;
 
 namespace TestApplication.Models
 {
-    public class AutoRepository : ElateTableRepository<Auto>
+    public class AutoRepository : IElateTableRepository<Auto>
     {
         string connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
         public List<Auto> GetUsers()
@@ -46,6 +46,30 @@ namespace TestApplication.Models
             using (IDbConnection db = new SqlConnection(connectionString))
             {
                 return db.GetPagination<Auto>(type, col);
+            }
+        }
+
+        public void Delete(int index)
+        {
+            using (IDbConnection db = new SqlConnection(connectionString))
+            {
+                db.Delete<Auto>(index);
+            }
+        }
+
+        public void Edit(Auto auto)
+        {
+            using (IDbConnection db = new SqlConnection(connectionString))
+            {
+                db.Update(auto);
+            }
+        }
+
+        public IEnumerable<string> GetUniqueItems(string field)
+        {
+            using (IDbConnection db = new SqlConnection(connectionString))
+            {
+                return db.GetUniqueItems<Auto>(field);
             }
         }
     }

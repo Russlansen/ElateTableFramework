@@ -10,30 +10,81 @@ namespace ElateTableFramework.Configuration
     {
         public string IndexerField { get; set; }
 
-        public bool SelectionColumn { get; set; }
+        public SelectionColumn SelectionColumn { get; set; }
 
+        public List<Button> Buttons { get; set; }
+
+        public ServiceColumnsConfig(string indexerField = "Id")
+        {
+            IndexerField = indexerField;
+        }
+    }
+
+    public class SelectionColumn {
         public string SelectAllCallbackController { get; set; }
 
         public string SelectAllCallbackAction { get; set; }
 
-        public bool AllowMultipleSelection { get; set; } 
-
-        public Dictionary<string, ServiceColumnCallback> ServiceButtons { get; set; }
+        public bool AllowMultipleSelection { get; set; }
     }
 
-    public class ServiceColumnCallback
+    public abstract class Button
     {
+        public string Name { get; set; }
+
         public string CallbackController { get; set; }
 
         public string CallbackAction { get; set; }
 
-        public bool IsEditRow { get; set; }
-
-        public ServiceColumnCallback(string controller, string action, bool isEditRow = false)
+        public Button(string name, string callbackController, string callbackAction)
         {
-            IsEditRow = isEditRow;
-            CallbackController = controller;
-            CallbackAction = action;
+            Name = name;
+            CallbackController = callbackController;
+            CallbackAction = callbackAction;
         }
+    }
+
+    public class EditButton : Button
+    {
+        public string ModalTitle { get; set; }
+
+        public string ModalCancelButtonText { get; set; }
+
+        public string ModalSaveButtonText { get; set; }
+
+        public List<string> NonEditableColumns { get; set; }
+
+        public EditButton(string name, string callbackController, string callbackAction) 
+                          : base(name, callbackController, callbackAction)
+        {
+            ModalTitle = "Edit";
+            ModalCancelButtonText = "Cancel";
+            ModalSaveButtonText = "Save";
+        } 
+    }
+
+    public class DeleteButton : Button
+    {
+        public string ModalTitle { get; set; }
+
+        public string ModalWarningText { get; set; }
+
+        public string ModalCancelButtonText { get; set; }
+
+        public string ModalConfirmButtonText { get; set; }
+
+        public DeleteButton(string name, string callbackController, string callbackAction)
+                         : base(name, callbackController, callbackAction)
+        {
+            ModalTitle = "Delete";
+            ModalCancelButtonText = "Cancel";
+            ModalConfirmButtonText = "Delete";
+        }
+    }
+
+    public class CustomButton : Button
+    {
+        public CustomButton(string name, string callbackController, string callbackAction) 
+                            : base(name, callbackController, callbackAction) { }
     }
 }

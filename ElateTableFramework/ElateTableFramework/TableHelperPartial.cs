@@ -1,4 +1,5 @@
-﻿using ElateTableFramework.Configuration;
+﻿using ElateTableFramework.Attributes;
+using ElateTableFramework.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -147,43 +148,74 @@ namespace ElateTableFramework
         private static string GetFormatedValue(object entity, PropertyInfo property)
         {
             var entityValue = property.GetValue(entity);
-            bool isFormatted = _config.ColumnFormat != null &&
-                               _config.ColumnFormat.ContainsKey(property.Name);
-
-            if (!isFormatted)
-                return entityValue.ToString();
-
             var propertyType = GetColumnType(property);
+            bool isFormatted = (_config.ColumnFormat != null &&
+                               _config.ColumnFormat.ContainsKey(property.Name));
 
-            var format = _config.ColumnFormat[property.Name];
-            if (propertyType == "date-time")
+            if (!isFormatted && propertyType != "enum")
             {
+                return entityValue.ToString();
+            }
+            else if (propertyType == "enum")
+            {
+                var enumFields = property.PropertyType.GetFields();
+                var names = property.PropertyType.GetEnumNames().ToList();
+                foreach (var enumField in enumFields)
+                {
+                    if (names.Contains(enumField.Name))
+                    {
+                        var attributes = enumField.CustomAttributes;
+                        var renameAttribute = attributes.Where(x => x.AttributeType ==
+                                                     typeof(EnumRenameAttribute)).FirstOrDefault();
+                        if (renameAttribute != null)
+                        {
+                            var index = names.FindIndex(x => x == enumField.Name);
+                            var newName = renameAttribute.NamedArguments.FirstOrDefault().TypedValue.Value;
+                            return newName.ToString();
+                        }
+                    }
+                    
+                }
+                return entityValue.ToString();
+            }
+            else if (propertyType == "date-time")
+            {
+                var format = _config.ColumnFormat[property.Name];
                 var date = (DateTime)entityValue;
                 return date.ToString(format);
             }
             else if (propertyType == "number")
             {
+                var format = _config.ColumnFormat[property.Name];
                 var number = Convert.ToDouble(entityValue);
                 return number.ToString(format);
             }
-
-            return entityValue.ToString();
+            else return entityValue.ToString();
         }
 
         private static string GetColumnType(PropertyInfo property)
         {
-            var propertyType = property.PropertyType;
+            if (_config.FieldsForCombobox.ContainsKey(property.Name))
+            {
+                return "combo-box";
+            }
+            else
+            {
+                var propertyType = property.PropertyType;
 
-            var isNumber = propertyType == typeof(float) ||
-                           propertyType == typeof(double) ||
-                           propertyType == typeof(decimal) ||
-                           propertyType == typeof(byte) ||
-                           propertyType == typeof(int) ||
-                           propertyType == typeof(long);
+                var isNumber = propertyType == typeof(float) ||
+                               propertyType == typeof(double) ||
+                               propertyType == typeof(decimal) ||
+                               propertyType == typeof(byte) ||
+                               propertyType == typeof(int) ||
+                               propertyType == typeof(long);
 
-            var isDatetime = propertyType == typeof(DateTime);
+                var isDatetime = propertyType == typeof(DateTime);
 
-            return isNumber ? "number" : isDatetime ? "date-time" : "string";
+                var isEnum = propertyType.IsEnum;
+
+                return isNumber ? "number" : isDatetime ? "date-time" : isEnum ? "enum" : "string";
+            }   
         }
 
         private static string CalculateColumnWidth(string header)

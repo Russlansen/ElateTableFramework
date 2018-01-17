@@ -1,4 +1,5 @@
-﻿using ElateTableFramework.Configuration;
+﻿using ElateTableFramework.Attributes;
+using ElateTableFramework.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,11 @@ namespace ElateTableFramework
         private static TableConfiguration _config;
 
         private static int _totalColumnCount;
-                                                                                    
+
+        private static Dictionary<string, string> renamedAndOriginalHeaders;
+
+        private static Dictionary<string, string> nonMergedheadersAndTypes;
+
         public static MvcHtmlString ElateGetTableBody<T>(IEnumerable<T> entities, 
                                                          PaginationConfig paginationConfig) where T : class
         {
@@ -33,12 +38,14 @@ namespace ElateTableFramework
                                                        TableConfiguration config = null) where T : class
         {
             _config = config ?? new TableConfiguration();
+            renamedAndOriginalHeaders = new Dictionary<string, string>();
+            nonMergedheadersAndTypes = new Dictionary<string, string>();
 
             Type entityType = typeof(T);
 
-            TagBuilder div = new TagBuilder("div");
-            div.MergeAttribute("id", "loaderRotation");
-            div.InnerHtml = @"<i class='fa fa-spinner fa-pulse fa-5x fa-fw'></i>
+            TagBuilder rotator = new TagBuilder("div");
+            rotator.MergeAttribute("id", "loaderRotation");
+            rotator.InnerHtml = @"<i class='fa fa-spinner fa-pulse fa-5x fa-fw'></i>
                               <span class='sr-only'>Loading...</span>";
 
             TagBuilder table = new TagBuilder("table");
@@ -62,8 +69,13 @@ namespace ElateTableFramework
 
             table.InnerHtml += BuildTableHead(properties);
             table.InnerHtml += entities.Any() ? BuildTableBody(entities, properties) : BuildEmptyTableBody();
-
-            return new MvcHtmlString(table.ToString() + div.ToString());
+            var outputHtml = table.ToString() + rotator.ToString();
+            var serviceButtons = _config.ServiceColumnsConfig?.Buttons;
+            if (serviceButtons != null && serviceButtons.Any())
+            {
+                outputHtml += BuildModalHtmlString(properties);
+            }
+            return new MvcHtmlString(outputHtml);
         }
 
         private static TagBuilder BuildTableHead(PropertyInfo[] properties)
@@ -73,15 +85,19 @@ namespace ElateTableFramework
 
             TagBuilder trHead = new TagBuilder("tr");
             trHead.MergeAttribute("class", SetAttribute(Tag.THeadTr));
-            
+
             var columnsHeadersAndTypes = new Dictionary<string, string>();
             var excludedColumnsByMerge = new List<string>();
-            
+
             var includedPropertyList = GetIncludedPropertyList(properties);
 
             foreach (var property in includedPropertyList)
             {
                 string columnType = GetColumnType(property);
+                if (!nonMergedheadersAndTypes.ContainsKey(property.Name))
+                {
+                    nonMergedheadersAndTypes.Add(property.Name, columnType);
+                }
 
                 foreach (var mergedItem in _config.Merge)
                 {
@@ -120,27 +136,27 @@ namespace ElateTableFramework
             _totalColumnCount = columnsHeadersAndTypesSorted.Count();
 
             var serviceColumn = _config.ServiceColumnsConfig;
+            var selectionColumn = serviceColumn.SelectionColumn;
 
-            var isSelectAllExist = !string.IsNullOrEmpty(serviceColumn.SelectAllCallbackController) &&
-                                   !string.IsNullOrEmpty(serviceColumn.SelectAllCallbackAction);
-
-            if (!string.IsNullOrEmpty(serviceColumn.IndexerField) && serviceColumn.SelectionColumn)
+            if (!string.IsNullOrEmpty(serviceColumn.IndexerField) && serviceColumn.SelectionColumn != null)
             {
-                TagBuilder selectionColumn = new TagBuilder("td");
-                selectionColumn.MergeAttribute("class", "command-column");
-                selectionColumn.MergeAttribute("data-indexer-field", serviceColumn.IndexerField);
-                selectionColumn.MergeAttribute("style", "max-width:2%; width:2%");
+                TagBuilder selectionColumnHtml = new TagBuilder("td");
+                selectionColumnHtml.MergeAttribute("class", "command-column");
+                selectionColumnHtml.MergeAttribute("data-indexer-field", serviceColumn.IndexerField);
+                selectionColumnHtml.MergeAttribute("style", "max-width:2%; width:2%");
 
-                if (isSelectAllExist && serviceColumn.AllowMultipleSelection)
+                var isSelectAllExist = !string.IsNullOrEmpty(selectionColumn.SelectAllCallbackController) &&
+                                       !string.IsNullOrEmpty(selectionColumn.SelectAllCallbackAction);
+
+                if (isSelectAllExist && selectionColumn.AllowMultipleSelection)
                 {
-                    selectionColumn.InnerHtml += @"<input id='checkboxMain' class='checkbox' type='checkbox'>
+                    selectionColumnHtml.InnerHtml += @"<input id='checkboxMain' class='checkbox' type='checkbox'>
                                                <label class='command-label' for='checkboxMain'></label>";
                 }
-                
-                trHead.InnerHtml += selectionColumn;
+
+                trHead.InnerHtml += selectionColumnHtml;
                 _totalColumnCount++;
             }
-            
             foreach (var header in columnsHeadersAndTypesSorted.Keys)
             {
                 TagBuilder td = new TagBuilder("td");
@@ -148,19 +164,45 @@ namespace ElateTableFramework
                 td.MergeAttribute("data-column-type", columnsHeadersAndTypes[header]);
                 td.MergeAttribute("style", CalculateColumnWidth(header));
                 bool isMerged = _config.Merge != null && _config.Merge.ContainsKey(header);
-                
+
                 if (isMerged)
                 {
                     td.MergeAttribute("data-original-field-name", _config.Merge[header].FirstOrDefault());
+                    td.MergeAttribute("data-merged-with", string.Join(",", _config.Merge[header]));
+
+                    var typesArray = new List<string>();
+                    foreach (var mergedValues in _config.Merge[header])
+                    {
+                        typesArray.Add(nonMergedheadersAndTypes[mergedValues]);
+                    }
+                    td.MergeAttribute("data-merged-types", string.Join(",", typesArray));
+
+                    foreach (var mergeditem in _config.Merge[header])
+                    {
+                        if (_config.Rename.ContainsKey(mergeditem))
+                        {
+                            renamedAndOriginalHeaders.Add(_config.Rename[mergeditem], mergeditem);
+                        }
+                        else
+                        {
+                            renamedAndOriginalHeaders.Add(mergeditem, mergeditem);
+                        }
+                        
+                    }
                 }
                 else if (!_config.Rename.ContainsValue(header))
                 {
                     td.MergeAttribute("data-original-field-name", header);
+                    if (!renamedAndOriginalHeaders.ContainsKey(header))
+                    {
+                        renamedAndOriginalHeaders.Add(header, header);
+                    } 
                 }
                 else
                 {
                     var fieldConfig = _config.Rename.Where(x => x.Value == header).FirstOrDefault();
                     td.MergeAttribute("data-original-field-name", fieldConfig.Key);
+                    renamedAndOriginalHeaders.Add(header, fieldConfig.Key);
                 }
 
                 td.InnerHtml += "<span>" + header + "</span>";
@@ -214,6 +256,50 @@ namespace ElateTableFramework
                                              </div>";
                             break;
                         }
+                    case "enum":
+                        {
+                            var prop = properties.Where(x => x.Name == header).FirstOrDefault();
+                            var enumFields = prop.PropertyType.GetFields();
+                            var names = prop.PropertyType.GetEnumNames().ToList();
+                            foreach(var enumField in enumFields)
+                            {
+                                if (names.Contains(enumField.Name))
+                                {
+                                    var attributes = enumField.CustomAttributes;
+                                    var renameAttribute = attributes.Where(x => x.AttributeType ==
+                                                                 typeof(EnumRenameAttribute)).FirstOrDefault();
+                                    if(renameAttribute != null)
+                                    {
+                                        var index = names.FindIndex(x => x == enumField.Name);
+                                        var newName = renameAttribute.NamedArguments.FirstOrDefault().TypedValue.Value;
+                                        names[index] = newName.ToString();
+                                    }
+                                }
+                            }
+                            
+                            td.InnerHtml += "<select style='display:none' class='form-control filter-select " + 
+                                                                                  "string-filter-selector'/>";
+                            td.InnerHtml += "<option disabled selected>All</option>";
+                            for(var i = 0; i < names.Count; i++)
+                            {
+                                td.InnerHtml += @"<option value=" + i + ">" + names[i] + "</option>";
+                            }
+                            td.InnerHtml += "</select>";
+                            break;
+                        }
+                    case "combo-box":
+                        {
+                            var names = _config.FieldsForCombobox[header];
+                            td.InnerHtml += "<select style='display:none' class='form-control filter-select " +
+                                                                                  "string-filter-selector'/>";
+                            td.InnerHtml += "<option disabled selected>All</option>";
+                            for (var i = 0; i < names.Length; i++)
+                            {
+                                td.InnerHtml += @"<option value=" + names[i] + ">" + names[i] + "</option>";
+                            }
+                            td.InnerHtml += "</select>";
+                            break;
+                        }
                     default:
                         {
                             td.InnerHtml += @"<select style='display:none' class='form-control filter-select 
@@ -230,7 +316,7 @@ namespace ElateTableFramework
 
                 trHead.InnerHtml += td;
             }
-            var serviceButtons = _config.ServiceColumnsConfig.ServiceButtons;
+            var serviceButtons = _config.ServiceColumnsConfig.Buttons;
 
             if (serviceButtons !=null && serviceButtons.Any())
             {
@@ -268,6 +354,7 @@ namespace ElateTableFramework
 
                 foreach (var property in includedPropertyList)
                 {
+                    isPropertyMerged = excludedColumnsByMerge.Contains(property.Name);
                     if (isMergingExist && !isPropertyMerged)
                     {
                         foreach (var mergedHeader in _config.Merge)
@@ -287,12 +374,13 @@ namespace ElateTableFramework
                                 foreach (var prop in propertiesList)
                                 {
                                     var propValue = prop.GetValue(entity);
-                                    mergedString.Append(propValue.ToString()).Append(_config.MergeDivider);
+                                    mergedString.Append(propValue.ToString()).Append("\u2063" + 
+                                                                             _config.MergeDivider + "\u2063");
                                 }
 
                                 //Removing merge divider at the end of the string
-                                mergedString.Remove(mergedString.Length - _config.MergeDivider.Length, 
-                                                                            _config.MergeDivider.Length);
+                                mergedString.Remove(mergedString.Length - (_config.MergeDivider.Length + 2), 
+                                                                          (_config.MergeDivider.Length + 2));
 
                                 cellsInRow.Add(mergedHeader.Key, mergedString.ToString());
                                 excludedColumnsByMerge.AddRange(mergedHeader.Value);
@@ -313,7 +401,7 @@ namespace ElateTableFramework
                 var sortedCells = SortByHeader(cellsInRow);
                 var serviceColumn = _config.ServiceColumnsConfig;
 
-                if (!string.IsNullOrEmpty(serviceColumn.IndexerField) && serviceColumn.SelectionColumn)
+                if (!string.IsNullOrEmpty(serviceColumn.IndexerField) && serviceColumn.SelectionColumn != null)
                 {
                     TagBuilder commandColumn = new TagBuilder("td");
                     commandColumn.MergeAttribute("class", "command-column");
@@ -331,7 +419,7 @@ namespace ElateTableFramework
                         commandColumn.MergeAttribute("data-row-indexer", property?.GetValue(entity).ToString());
                         
                     }
-                    if (serviceColumn.AllowMultipleSelection)
+                    if (serviceColumn.SelectionColumn.AllowMultipleSelection)
                     {
                         commandColumn.InnerHtml += @"<input id='checkbox" + entity.GetHashCode() + "' " +
                                                     "class='checkbox item-checkbox' type='checkbox'>" +
@@ -358,7 +446,7 @@ namespace ElateTableFramework
                     tr.InnerHtml += td;
                 }
 
-                var serviceButtons = _config.ServiceColumnsConfig.ServiceButtons;
+                var serviceButtons = _config.ServiceColumnsConfig.Buttons;
 
                 if (serviceButtons != null && serviceButtons.Any())
                 {
@@ -366,18 +454,22 @@ namespace ElateTableFramework
                     cell.MergeAttribute("class", "service-column");
                     foreach (var serviceButton in serviceButtons)
                     {
-                        var callback = serviceButton.Value.CallbackController + '/' +
-                                       serviceButton.Value.CallbackAction;
+                        var callback = serviceButton.CallbackController + '/' +
+                                       serviceButton.CallbackAction;
 
                         TagBuilder button = new TagBuilder("input");
-                        button.MergeAttribute("class", "btn btn-default");
+                        button.MergeAttribute("class", "btn btn-default service-button");
                         button.MergeAttribute("style", "margin:1px");
                         button.MergeAttribute("type", "button");
-                        button.MergeAttribute("value", serviceButton.Key);
+                        button.MergeAttribute("value", serviceButton.Name);
                         button.MergeAttribute("data-callback", callback);
-                        if (serviceButton.Value.IsEditRow)
+                        if (serviceButton is EditButton)
                         {
                             button.MergeAttribute("data-edit-btn", "true");
+                        }
+                        else if(serviceButton is DeleteButton)
+                        {
+                            button.MergeAttribute("data-delete-btn", "true");
                         }
                         cell.InnerHtml += button;
                     }
@@ -511,6 +603,110 @@ namespace ElateTableFramework
             td.InnerHtml = div.ToString();
             tr.InnerHtml = td.ToString();
             return tr;
+        }
+
+        public static string BuildModalHtmlString(PropertyInfo[] properties)
+        {
+            var buttons = _config.ServiceColumnsConfig.Buttons;
+            string modalHtml = "";
+            foreach (var button in buttons)
+            {
+                if(button is EditButton)
+                {
+                    var editButton = button as EditButton;
+                    var inputs = new StringBuilder();
+                    foreach(var header in renamedAndOriginalHeaders)
+                    {
+                        var disabled = editButton.NonEditableColumns.Contains(header.Value) ? "readonly" : "";
+
+                        var isCombobox = nonMergedheadersAndTypes[header.Value] == "combo-box";
+                        var isEnum = nonMergedheadersAndTypes[header.Value] == "enum";
+
+                        if (isCombobox || isEnum)
+                        {
+                            string[] names;
+                            if (isCombobox)
+                            {
+                                names = _config.FieldsForCombobox[header.Value];
+                            }
+                            else
+                            {
+                                var prop = properties.Where(x => x.Name == header.Value).FirstOrDefault();
+                                names = prop.PropertyType.GetEnumNames();
+                            }
+                            inputs.Append(@"<tr><td style='padding:5px'><label for='" + header.Value + "'>" + header.Key +
+                                   "</label></td><td style='padding:5px'><select id='" + header.Value + "' " +
+                                   "class='form-control' name='" + header.Value + "'" + disabled + ">");
+
+                            for (var i = 0; i < names.Length; i++)
+                            {
+                                inputs.Append(@"<option value=" + i + ">" + names[i] + "</option>");
+                            }
+
+                            inputs.Append("</select></td></tr>");
+                        }
+                        else
+                        {
+                            inputs.Append(@"<tr><td style='padding:5px'><label for='" + header.Value + "'>" + header.Key +
+                                   "</label></td><td style='padding:5px'><input id='" + header.Value + "' " +
+                                   "class='form-control' name='" + header.Value + "'" + disabled + " />" +
+                                   "</td></tr>");
+                        }
+                        
+                    }
+
+                    modalHtml += @"
+                    <div class='modal fade bd-example-modal-sm' id='editModal' tabindex='-1' role='dialog' 
+                                                       aria-labelledby='exampleModalLabel' aria-hidden='true'>
+                        <div class='modal-dialog modal-sm' role='document'>
+                            <div class='modal-content text-center'>
+                                <div class='modal-header'>
+                                    <h5 class='modal-title' id='exampleModalLabel'>" + editButton.ModalTitle + @"</h5>
+                                    <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+                                        <span aria-hidden='true'>&times;</span>
+                                    </button>
+                                </div>
+                                <form id='editForm' method='post'>
+                                    <div class='modal-body'><table>" + inputs.ToString() + @"</table></div>
+                                    <div class='modal-footer'>
+                                        <button type='button' class='btn btn-secondary' data-dismiss='modal'>" + 
+                                                                editButton.ModalCancelButtonText + @"</button>
+                                        <button type='submit' class='btn btn-primary'>" + 
+                                                                editButton.ModalSaveButtonText + @"</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>";
+                }
+                else if(button is DeleteButton)
+                {
+                    var deleteButton = button as DeleteButton;
+                    modalHtml += @"
+                    <div class='modal fade bd-example-modal-sm' id='deleteModal' tabindex='-1' role='dialog' 
+                                                            aria-labelledby='exampleModalLabel' aria-hidden='true'>
+                        <div class='modal-dialog modal-sm' role='document'>
+                            <div class='modal-content'>
+                                <div class='modal-header'>
+                                    <h5 class='modal-title' id='exampleModalLabel'>" + deleteButton.ModalTitle + @"</h5>
+                                    <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+                                        <span aria-hidden='true'>&times;</span>
+                                    </button>
+                                </div>
+                                <div class='modal-body'>" + deleteButton.ModalWarningText + @"</div>
+                                <div class='modal-footer'>
+                                    <button type='button' class='btn btn-secondary' data-dismiss='modal'>" +
+                                                             deleteButton.ModalCancelButtonText + @"</button>
+                                    <button id='deleteButton' type='button' class='btn btn-danger'>" +
+                                                             deleteButton.ModalConfirmButtonText + @"</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>";
+                } 
+            }
+            
+            return modalHtml;
         }
     }
 }

@@ -7,9 +7,11 @@ using System.Threading.Tasks;
 
 namespace ElateTableFramework
 {
-    public interface ElateTableRepository<T>
+    public interface IElateTableRepository<T>
     {
         IEnumerable<T> GetPagination(PaginationConfig config);
+
+        IEnumerable<string> GetUniqueItems(string field);
 
         string GetIndexerJsonArray(PaginationConfig config, string fieldName = null);
     }

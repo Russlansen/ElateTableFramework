@@ -45,11 +45,21 @@ namespace TestApplication.Controllers
 
         public void Delete(string indexer)
         {
-
+            var repos = new AutoRepository();
+            repos.Delete(Int32.Parse(indexer));
         }
+
+        public void Edit(Auto auto)
+        {
+            var repos = new AutoRepository();
+            repos.Edit(auto);
+        }
+
+
 
         private TableConfiguration SetOptions(PaginationConfig config)
         {
+            var repos = new AutoRepository();
             TableConfiguration options = new TableConfiguration()
             {
                 ColorScheme = ColorScheme.Default,
@@ -57,18 +67,25 @@ namespace TestApplication.Controllers
                 RowsHighlight = true,
                 CallbackController = "Home",
                 CallbackAction = "PaginationAsync",
-                //Exclude = new List<string>() { "Id" },
-                ServiceColumnsConfig = new ServiceColumnsConfig()
+                ServiceColumnsConfig = new ServiceColumnsConfig("Id")
                 {
-                    SelectionColumn = true,
-                    IndexerField = "Id",
-                    SelectAllCallbackController = "Home",
-                    SelectAllCallbackAction = "Selection",
-                    AllowMultipleSelection = true,
-                    ServiceButtons = new Dictionary<string, ServiceColumnCallback>()
+                    SelectionColumn = new SelectionColumn() {
+                        AllowMultipleSelection = true,
+                        SelectAllCallbackController = "Home",
+                        SelectAllCallbackAction = "Selection",
+                    },
+                    Buttons = new List<Button>()
                     {
-                        { "Edit", new ServiceColumnCallback("Home", "Delete", true) },
-                    }
+                        new EditButton("Edit", "Home", "Edit")
+                        {
+                            NonEditableColumns = new List<string>(){ "Id" }
+                        },
+                        new DeleteButton("Delete", "Home", "Delete")
+                        {
+                            ModalWarningText = "Please, confirm this action",
+                        }
+                    },
+                    
                 },                
                 ColumnFormat = new Dictionary<string, string>()
                 {
@@ -81,11 +98,21 @@ namespace TestApplication.Controllers
                 SetClass = new Dictionary<Tag, string>()
                 {
                     { Tag.Table, "table table-bordered" },
+                },
+                FieldsForCombobox = new Dictionary<string, string[]>()
+                {
+                    { "Model", repos.GetUniqueItems("Model").ToArray() },
+                    { "Year", repos.GetUniqueItems("Year").ToArray() }
                 }
                 //Merge = new Dictionary<string, string[]>()
                 //{
-                //    { "Id", new string[]{ "Id","Model" } }
+                //    { "Test", new string[]{ "Id", "Year", "Model" } }
                 //},
+                //Rename = new Dictionary<string, string>
+                //{
+                //    { "Year", "Год" },
+                //    { "Model", "Модель" }
+                //}
                 //ColumnOrder = new Dictionary<string, int>()
                 //{
                 //    { "Date", -100 },
