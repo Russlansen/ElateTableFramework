@@ -14,9 +14,9 @@ namespace TestApplication.Models
         public int Id { get; set; }
         public string Model { get; set; }
         public string Engine { get; set; }
-        public string Year { get; set; }
+        public int Year { get; set; }
         public Color Color { get; set; }
-        public string Price { get; set; }
+        public double Price { get; set; }
         public DateTime Date { get; set; }
     }
 

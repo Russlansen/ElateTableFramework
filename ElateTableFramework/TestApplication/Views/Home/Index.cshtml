@@ -6,5 +6,8 @@
     ViewBag.Title = "Index";
 }
 <div class="col-md-12">
-    @Html.ElateTable(Model, ViewData["options"] as TableConfiguration)
+    @Html.ElateTable(Model, ViewData["autoOptions"] as TableConfiguration)
+</div>
+<div class="col-md-12">
+    @Html.ElateTable(ViewData["users"] as List<User>, ViewData["userOptions"] as TableConfiguration)
 </div>

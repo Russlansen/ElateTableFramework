@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
+﻿using ElateTableFramework.Binders;
 using System.Web.Mvc;
 using System.Web.Routing;
 
@@ -13,6 +10,8 @@ namespace TestApplication
         {
             AreaRegistration.RegisterAllAreas();
             RouteConfig.RegisterRoutes(RouteTable.Routes);
+            ModelBinders.Binders.Add(typeof(double), new DoubleTypeBinder());
+            ModelBinders.Binders.Add(typeof(double?), new DoubleTypeBinder());
         }
     }
 }

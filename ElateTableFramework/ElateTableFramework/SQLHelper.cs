@@ -98,9 +98,61 @@ namespace ElateTableFramework
             }
             return queryString;
         }
-        public static IEnumerable<T> GetPagination<T>(this IDbConnection db, PaginationConfig config)
+        public static IEnumerable<T> GetDataWithPagination<T>(this IDbConnection db, PaginationConfig config,
+                                                         IEnumerable<TypeJoinConfiguration> joinConfig = null)
         {
-            var queryString = new StringBuilder($"SELECT* FROM { GetTableName<T>()}"); 
+            var queryString = new StringBuilder();
+            var tableName = GetTableName<T>();
+            if (joinConfig != null && joinConfig.Any())
+            {
+                var properties = typeof(T).GetProperties();
+                queryString.Append("SELECT");
+                foreach (var property in properties)
+                {
+                    Type propertyType = property.PropertyType;
+
+                    switch (propertyType.Name)
+                    {
+                        case nameof(Byte):
+                        case nameof(Int16):
+                        case nameof(Int32):
+                        case nameof(Int64):
+                        case nameof(String):
+                        case nameof(Double):
+                        case nameof(Single):
+                        case nameof(Decimal):
+                        case nameof(DateTime):
+                            {
+                                queryString.Append($" {tableName}.{property.Name},");
+                                break;
+                            }
+                    }
+                }
+
+                foreach (var joinedField in joinConfig)
+                {
+                    foreach(var field in joinedField.JoinedFields)
+                    {
+                        queryString.Append(" " + joinedField.TargetType.Name + "." + field + ",");
+                    }
+                }
+
+                queryString.Remove(queryString.Length - 1, 1);
+                queryString.Append($" FROM { tableName } inner join");
+
+                foreach (var joinItem in joinConfig)
+                {
+                    Type joinType = joinItem.TargetType;
+                    var joinedTableName = GetTableName<T>(joinType);
+                    queryString.Append($" { joinedTableName }");
+                    queryString.Append($" ON {tableName}.{joinItem.JoinOnFieldPair.Key} = {joinedTableName}.{joinItem.JoinOnFieldPair.Value }");
+                }
+            }
+            else
+            {
+                queryString.Append($"SELECT * FROM { tableName }");
+            }
+
             var subQueryString = GetQueryString<T>(config, out dynamic sqlParameters); 
            
             try
@@ -143,9 +195,15 @@ namespace ElateTableFramework
             }   
         }
 
-        private static string GetTableName<T>()
+        private static string GetTableName<T>(Type type = null)
         {
-            Type entityType = typeof(T);
+            Type entityType;
+
+            if(type != null)
+                entityType = type;
+            else
+                entityType = typeof(T);
+            
             var tableName = entityType.Name;
             foreach (var attr in entityType.GetCustomAttributes(true))
             {
@@ -165,25 +223,12 @@ namespace ElateTableFramework
             return tableName;
         }
 
-        public static string GetIndexerJsonArray<T>(this IDbConnection db, PaginationConfig config, string fieldName = null)
+        public static string GetIndexerJsonArray<T>(this IDbConnection db, PaginationConfig config, string fieldName)
         {
             var queryString = new StringBuilder();
             var subQueryString = GetQueryString<T>(config, out dynamic sqlParameters);
-            if (string.IsNullOrEmpty(fieldName))
-            {
-                var fieldNameQueryString = $"SELECT kcu.COLUMN_NAME " +
-                                            "FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS as tc " +
-                                            "JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as kcu " +
-                                            "ON kcu.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA " +
-                                            "WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'";
+            queryString.Append($"SELECT {fieldName} FROM {GetTableName<T>()}{subQueryString}");
 
-                fieldName = db.Query<string>(fieldNameQueryString).FirstOrDefault();
-                queryString.Append($"SELECT {fieldName} FROM {GetTableName<T>()}{subQueryString}");
-            }
-            else
-            {
-                queryString.Append($"SELECT {fieldName} FROM {GetTableName<T>()}{subQueryString}");
-            }
             try
             {
                 var indexerArray = db.Query<int>(queryString.ToString(), (object)sqlParameters);

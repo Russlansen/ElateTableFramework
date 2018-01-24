@@ -12,35 +12,31 @@ namespace ElateTableFramework
 {
     public static partial class TableHelper
     {
-        private static TableConfiguration _config;
-
-        private static int _totalColumnCount;
-
-        private static Dictionary<string, string> renamedAndOriginalHeaders;
-
-        private static Dictionary<string, string> nonMergedheadersAndTypes;
-
         public static MvcHtmlString ElateGetTableBody<T>(IEnumerable<T> entities, 
-                                                         PaginationConfig paginationConfig) where T : class
+                                                         TableConfiguration config) where T : class
         {
-            if (paginationConfig != null) _config.PaginationConfig = paginationConfig;
-
             Type entityType = typeof(T);
             var properties = entityType.GetProperties();
 
             TagBuilder tableBodyHtml;
-            tableBodyHtml = entities.Any() ? BuildTableBody(entities, properties) : BuildEmptyTableBody(); 
+            if (entities.Any())
+            {
+                tableBodyHtml = BuildTableBody(config, entities, properties);
+            }
+            else
+            {
+                tableBodyHtml = BuildEmptyTableBody(config);
+            }
 
             return new MvcHtmlString(tableBodyHtml.ToString());
         }
 
         public static MvcHtmlString ElateTable<T>(this HtmlHelper html, IEnumerable<T> entities, 
-                                                       TableConfiguration config = null) where T : class
+                                                       TableConfiguration config) where T : class
         {
-            _config = config ?? new TableConfiguration();
-            renamedAndOriginalHeaders = new Dictionary<string, string>();
-            nonMergedheadersAndTypes = new Dictionary<string, string>();
-
+            var renamedAndOriginalHeaders = new Dictionary<string, string>();
+            var nonMergedHeadersAndTypes = new Dictionary<string, string>();
+            int _totalColumnCount = 0;
             Type entityType = typeof(T);
 
             TagBuilder rotator = new TagBuilder("div");
@@ -49,57 +45,66 @@ namespace ElateTableFramework
                               <span class='sr-only'>Loading...</span>";
 
             TagBuilder table = new TagBuilder("table");
-            table.MergeAttribute("class", SetAttribute(Tag.Table));
-            table.MergeAttribute("data-scheme", _config.ColorScheme.ToString());
-            table.MergeAttribute("data-order-type", _config.PaginationConfig?.OrderType.ToString() ?? "ASC");
-            table.MergeAttribute("data-order-field", _config.PaginationConfig?.OrderByField);
-            table.MergeAttribute("data-rows-highlight", _config.RowsHighlight.ToString().ToLower());
+            table.MergeAttribute("id", config.TableId);
+            table.MergeAttribute("class", SetAttribute(config, Tag.Table));
+            table.MergeAttribute("data-scheme", config.ColorScheme.ToString());
+            table.MergeAttribute("data-order-type", config.PaginationConfig?.OrderType.ToString() ?? "ASC");
+            table.MergeAttribute("data-order-field", config.PaginationConfig?.OrderByField);
+            table.MergeAttribute("data-rows-highlight", config.RowsHighlight.ToString().ToLower());
 
-            bool isCallbackSpecified = _config.PaginationConfig != null ||
-                                      (!string.IsNullOrEmpty(_config.CallbackAction) &&
-                                       !string.IsNullOrEmpty(_config.CallbackController));
+            bool isCallbackSpecified = config.PaginationConfig != null ||
+                                      (!string.IsNullOrEmpty(config.CallbackAction) &&
+                                       !string.IsNullOrEmpty(config.CallbackController));
 
             if (isCallbackSpecified)
             {
-                var callbackUrl = $"{_config.CallbackController}/{_config.CallbackAction}";
+                var callbackUrl = $"{config.CallbackController}/{config.CallbackAction}";
                 table.MergeAttribute("data-callback", callbackUrl);
             }
             
             var properties = entityType.GetProperties();
 
-            table.InnerHtml += BuildTableHead(properties);
-            table.InnerHtml += entities.Any() ? BuildTableBody(entities, properties) : BuildEmptyTableBody();
+            table.InnerHtml += BuildTableHead(config, properties, renamedAndOriginalHeaders, 
+                                                             nonMergedHeadersAndTypes, ref _totalColumnCount);
+
+            table.InnerHtml += entities.Any() ? BuildTableBody(config, entities, properties) : 
+                                                                                  BuildEmptyTableBody(config);
+
             var outputHtml = table.ToString() + rotator.ToString();
-            var serviceButtons = _config.ServiceColumnsConfig?.Buttons;
+
+            var serviceButtons = config.ServiceColumnsConfig?.Buttons;
             if (serviceButtons != null && serviceButtons.Any())
             {
-                outputHtml += BuildModalHtmlString(properties);
+                outputHtml += BuildModalHtmlString(config, properties, renamedAndOriginalHeaders, 
+                                                                                    nonMergedHeadersAndTypes);
             }
             return new MvcHtmlString(outputHtml);
         }
 
-        private static TagBuilder BuildTableHead(PropertyInfo[] properties)
+        private static TagBuilder BuildTableHead(TableConfiguration config, PropertyInfo[] properties, 
+                                                 Dictionary<string, string> renamedAndOriginalHeaders,
+                                                 Dictionary<string, string> nonMergedHeadersAndTypes,
+                                                 ref int _totalColumnCount)
         {
             TagBuilder thead = new TagBuilder("thead");
-            thead.MergeAttribute("class", SetAttribute(Tag.THead));
+            thead.MergeAttribute("class", SetAttribute(config, Tag.THead));
 
             TagBuilder trHead = new TagBuilder("tr");
-            trHead.MergeAttribute("class", SetAttribute(Tag.THeadTr));
+            trHead.MergeAttribute("class", SetAttribute(config, Tag.THeadTr));
 
             var columnsHeadersAndTypes = new Dictionary<string, string>();
             var excludedColumnsByMerge = new List<string>();
 
-            var includedPropertyList = GetIncludedPropertyList(properties);
+            var includedPropertyList = GetIncludedPropertyList(config, properties);
 
             foreach (var property in includedPropertyList)
             {
-                string columnType = GetColumnType(property);
-                if (!nonMergedheadersAndTypes.ContainsKey(property.Name))
+                string columnType = GetColumnType(config, property);
+                if (!nonMergedHeadersAndTypes.ContainsKey(property.Name))
                 {
-                    nonMergedheadersAndTypes.Add(property.Name, columnType);
+                    nonMergedHeadersAndTypes.Add(property.Name, columnType);
                 }
-
-                foreach (var mergedItem in _config.Merge)
+                foreach (var mergedItem in config.MergeColumns)
                 {
                     bool isHeaderMerged = mergedItem.Value.Contains(property.Name) &&
                                          !columnsHeadersAndTypes.ContainsKey(mergedItem.Key);
@@ -113,15 +118,16 @@ namespace ElateTableFramework
                 }
 
                 bool isExcludedByMerge = excludedColumnsByMerge.Contains(property.Name);
-                bool isRenamed = _config.Rename != null &&
-                                 _config.Rename.ContainsKey(property.Name) &&
+
+                bool isRenamed = config.Rename != null &&
+                                 config.Rename.ContainsKey(property.Name) &&
                                  !isExcludedByMerge;
 
                 string columnHeader;
 
                 if (isRenamed)
                 {
-                    columnHeader = _config.Rename[property.Name];
+                    columnHeader = config.Rename[property.Name];
                 }
                 else if (!isExcludedByMerge)
                 {
@@ -132,10 +138,10 @@ namespace ElateTableFramework
                 columnsHeadersAndTypes.Add(columnHeader, columnType);
             }
 
-            var columnsHeadersAndTypesSorted = SortByHeader(columnsHeadersAndTypes);
+            var columnsHeadersAndTypesSorted = SortByHeader(config, columnsHeadersAndTypes);
             _totalColumnCount = columnsHeadersAndTypesSorted.Count();
 
-            var serviceColumn = _config.ServiceColumnsConfig;
+            var serviceColumn = config.ServiceColumnsConfig;
             var selectionColumn = serviceColumn.SelectionColumn;
 
             if (!string.IsNullOrEmpty(serviceColumn.IndexerField) && serviceColumn.SelectionColumn != null)
@@ -150,8 +156,12 @@ namespace ElateTableFramework
 
                 if (isSelectAllExist && selectionColumn.AllowMultipleSelection)
                 {
-                    selectionColumnHtml.InnerHtml += @"<input id='checkboxMain' class='checkbox' type='checkbox'>
-                                               <label class='command-label' for='checkboxMain'></label>";
+                    var callback = selectionColumn.SelectAllCallbackController + "/" +
+                                   selectionColumn.SelectAllCallbackAction;
+                    selectionColumnHtml.MergeAttribute("data-select-all-callback", callback);
+                    selectionColumnHtml.InnerHtml += 
+                        @"<input id='" + config.TableId + "checkboxMain' class='checkbox' type='checkbox'>" +
+                        @"<label class='command-label' for='" + config.TableId + "checkboxMain'></label>";
                 }
 
                 trHead.InnerHtml += selectionColumnHtml;
@@ -160,37 +170,36 @@ namespace ElateTableFramework
             foreach (var header in columnsHeadersAndTypesSorted.Keys)
             {
                 TagBuilder td = new TagBuilder("td");
-                td.MergeAttribute("class", SetAttribute(Tag.THeadTd));
+                td.MergeAttribute("class", SetAttribute(config, Tag.THeadTd));
                 td.MergeAttribute("data-column-type", columnsHeadersAndTypes[header]);
-                td.MergeAttribute("style", CalculateColumnWidth(header));
-                bool isMerged = _config.Merge != null && _config.Merge.ContainsKey(header);
+                td.MergeAttribute("style", CalculateColumnWidth(config, header, _totalColumnCount));
+                bool isMerged = config.MergeColumns != null && config.MergeColumns.ContainsKey(header);
 
                 if (isMerged)
                 {
-                    td.MergeAttribute("data-original-field-name", _config.Merge[header].FirstOrDefault());
-                    td.MergeAttribute("data-merged-with", string.Join(",", _config.Merge[header]));
+                    td.MergeAttribute("data-original-field-name", config.MergeColumns[header].FirstOrDefault());
+                    td.MergeAttribute("data-merged-with", string.Join(",", config.MergeColumns[header]));
 
                     var typesArray = new List<string>();
-                    foreach (var mergedValues in _config.Merge[header])
+                    foreach (var mergedValues in config.MergeColumns[header])
                     {
-                        typesArray.Add(nonMergedheadersAndTypes[mergedValues]);
+                        typesArray.Add(nonMergedHeadersAndTypes[mergedValues]);
                     }
                     td.MergeAttribute("data-merged-types", string.Join(",", typesArray));
 
-                    foreach (var mergeditem in _config.Merge[header])
+                    foreach (var mergeditem in config.MergeColumns[header])
                     {
-                        if (_config.Rename.ContainsKey(mergeditem))
+                        if (config.Rename.ContainsKey(mergeditem))
                         {
-                            renamedAndOriginalHeaders.Add(_config.Rename[mergeditem], mergeditem);
+                            renamedAndOriginalHeaders.Add(config.Rename[mergeditem], mergeditem); 
                         }
                         else
                         {
                             renamedAndOriginalHeaders.Add(mergeditem, mergeditem);
-                        }
-                        
+                        }                       
                     }
                 }
-                else if (!_config.Rename.ContainsValue(header))
+                else if (!config.Rename.ContainsValue(header))
                 {
                     td.MergeAttribute("data-original-field-name", header);
                     if (!renamedAndOriginalHeaders.ContainsKey(header))
@@ -200,14 +209,14 @@ namespace ElateTableFramework
                 }
                 else
                 {
-                    var fieldConfig = _config.Rename.Where(x => x.Value == header).FirstOrDefault();
+                    var fieldConfig = config.Rename.Where(x => x.Value == header).FirstOrDefault();
                     td.MergeAttribute("data-original-field-name", fieldConfig.Key);
                     renamedAndOriginalHeaders.Add(header, fieldConfig.Key);
                 }
 
                 td.InnerHtml += "<span>" + header + "</span>";
 
-                if (_config.CallbackAction != null)
+                if (config.CallbackAction != null)
                 {
                     td.InnerHtml += @"<a class='sorting-links'>
                                         <i data-sort='down' style='visibility:hidden' class='fa fa-sort-desc 
@@ -218,7 +227,7 @@ namespace ElateTableFramework
                                     </a>";
                 }
 
-                if (_config.PaginationConfig != null)
+                if (config.PaginationConfig != null)
                 {
                     td.InnerHtml += @"<i class='fa fa-filter glyphicon glyphicon-filter filter-button'
                                          aria-hidden='true'></i>";
@@ -244,10 +253,10 @@ namespace ElateTableFramework
                             td.InnerHtml += @"<div style='display:none' id='datetimepicker' 
                                                    class='input-group date filter-date-container'>
 
-                                                <input id='datepicker-date' style='border:0px;max-width: 100%;'
+                                                <input id='datepicker-date' style='border:0px;'
                                                        type='text' class='form-control filter-input' />
 
-                                                <span id='datepicker-open' style='border:0px;margin-left:1px' 
+                                                <span id='datepicker-open' style='border:0px;margin-left:0px' 
                                                       class='input-group-addon calendar-btn'>
                                                     <i class='fa fa-calendar glyphicon glyphicon-calendar' 
                                                        aria-hidden='true'></i>
@@ -289,7 +298,7 @@ namespace ElateTableFramework
                         }
                     case "combo-box":
                         {
-                            var names = _config.FieldsForCombobox[header];
+                            var names = config.FieldsForCombobox[header];
                             td.InnerHtml += "<select style='display:none' class='form-control filter-select " +
                                                                                   "string-filter-selector'/>";
                             td.InnerHtml += "<option disabled selected>All</option>";
@@ -316,13 +325,13 @@ namespace ElateTableFramework
 
                 trHead.InnerHtml += td;
             }
-            var serviceButtons = _config.ServiceColumnsConfig.Buttons;
+            var serviceButtons = config.ServiceColumnsConfig.Buttons;
 
             if (serviceButtons !=null && serviceButtons.Any())
             {
                 TagBuilder column = new TagBuilder("td");
                 column.MergeAttribute("class", "service-column");
-                column.MergeAttribute("style", CalculateColumnWidth("service"));
+                column.MergeAttribute("style", CalculateColumnWidth(config, "service", _totalColumnCount));
                 trHead.InnerHtml += column;
                 _totalColumnCount++;
             }
@@ -332,24 +341,27 @@ namespace ElateTableFramework
             return thead;
         }
 
-        private static TagBuilder BuildTableBody<T>(IEnumerable<T> entities, 
-                                                    PropertyInfo[] properties) where T : class
+        private static TagBuilder BuildTableBody<T>(TableConfiguration config, IEnumerable<T> entities, 
+                                                                   PropertyInfo[] properties) where T : class
         {
             TagBuilder tbody = new TagBuilder("tbody");
-            tbody.MergeAttribute("class", SetAttribute(Tag.TBody));
-            tbody.MergeAttribute("data-max-items", _config.PaginationConfig?.MaxItemsInPage.ToString() ?? "0");
+            tbody.MergeAttribute("class", SetAttribute(config, Tag.TBody));
+            tbody.MergeAttribute("data-max-items", config.PaginationConfig?.MaxItemsInPage.ToString() ?? "0");
+
+            int _totalColumnCount = 0;
+            bool isFirstRow = true;
 
             List<string> excludedColumnsByMerge;
-            bool isMergingExist = _config.Merge != null;
+            bool isMergingExist = config.MergeColumns != null;
 
             foreach (var entity in entities)
             {
                 TagBuilder tr = new TagBuilder("tr");
-                tr.MergeAttribute("class", SetAttribute(Tag.Tr));
+                tr.MergeAttribute("class", SetAttribute(config, Tag.Tr));
                 var cellsInRow = new Dictionary<string, string>();
 
                 excludedColumnsByMerge = new List<string>();
-                var includedPropertyList = GetIncludedPropertyList(properties);
+                var includedPropertyList = GetIncludedPropertyList(config, properties);
                 bool isPropertyMerged = false;
 
                 foreach (var property in includedPropertyList)
@@ -357,7 +369,7 @@ namespace ElateTableFramework
                     isPropertyMerged = excludedColumnsByMerge.Contains(property.Name);
                     if (isMergingExist && !isPropertyMerged)
                     {
-                        foreach (var mergedHeader in _config.Merge)
+                        foreach (var mergedHeader in config.MergeColumns)
                         {
                             bool isPropertyMergingExist = mergedHeader.Value.Contains(property.Name);
 
@@ -374,13 +386,14 @@ namespace ElateTableFramework
                                 foreach (var prop in propertiesList)
                                 {
                                     var propValue = prop.GetValue(entity);
-                                    mergedString.Append(propValue.ToString()).Append("\u2063" + 
-                                                                             _config.MergeDivider + "\u2063");
+                                    mergedString.Append(propValue.ToString())
+                                        .Append("<span class='invisibleDivider'>\u2063</span>" + 
+                                        config.MergeDivider + "<span class='invisibleDivider'>\u2063</span>");
                                 }
 
                                 //Removing merge divider at the end of the string
-                                mergedString.Remove(mergedString.Length - (_config.MergeDivider.Length + 2), 
-                                                                          (_config.MergeDivider.Length + 2));
+                                mergedString.Remove(mergedString.Length - (config.MergeDivider.Length + 2), 
+                                                                          (config.MergeDivider.Length + 2));
 
                                 cellsInRow.Add(mergedHeader.Key, mergedString.ToString());
                                 excludedColumnsByMerge.AddRange(mergedHeader.Value);
@@ -392,14 +405,14 @@ namespace ElateTableFramework
 
                     if (!isPropertyMerged)
                     {
-                        string cellValue = GetFormatedValue(entity, property);
-                        bool isContainsKey = _config.Rename.ContainsKey(property.Name);
-                        string headerName = isContainsKey ? _config.Rename[property.Name] : property.Name;
+                        string cellValue = GetFormatedValue(config, entity, property);
+                        bool isContainsKey = config.Rename.ContainsKey(property.Name);
+                        string headerName = isContainsKey ? config.Rename[property.Name] : property.Name;
                         cellsInRow.Add(headerName, cellValue);
                     }
                 }
-                var sortedCells = SortByHeader(cellsInRow);
-                var serviceColumn = _config.ServiceColumnsConfig;
+                var sortedCells = SortByHeader(config, cellsInRow);
+                var serviceColumn = config.ServiceColumnsConfig;
 
                 if (!string.IsNullOrEmpty(serviceColumn.IndexerField) && serviceColumn.SelectionColumn != null)
                 {
@@ -435,18 +448,20 @@ namespace ElateTableFramework
                     }
 
                     tr.InnerHtml += commandColumn;
+                    if(isFirstRow) _totalColumnCount++;
                 }
                 
                 foreach (var cell in sortedCells)
                 {
                     TagBuilder td = new TagBuilder("td");
-                    td.MergeAttribute("class", SetAttribute(Tag.Td));
+                    td.MergeAttribute("class", SetAttribute(config, Tag.Td));
                     
-                    td.SetInnerText(cell.Value);
+                    td.InnerHtml = cell.Value;
                     tr.InnerHtml += td;
+                    if (isFirstRow) _totalColumnCount++;
                 }
 
-                var serviceButtons = _config.ServiceColumnsConfig.Buttons;
+                var serviceButtons = config.ServiceColumnsConfig.Buttons;
 
                 if (serviceButtons != null && serviceButtons.Any())
                 {
@@ -484,55 +499,58 @@ namespace ElateTableFramework
                         cell.MergeAttribute("data-row-indexer", property?.GetValue(entity).ToString());
                     }
                     tr.InnerHtml += cell;
+                    if (isFirstRow) _totalColumnCount++;
+                    isFirstRow = false;
                 }
                 tbody.InnerHtml += tr;
             }
-            if (_config.PaginationConfig != null)
+            if (config.PaginationConfig != null)
             {
-                tbody.InnerHtml += GetPagination();
+                tbody.InnerHtml += GetPagination(config, _totalColumnCount);
             }
             return tbody;
         }
 
-        private static TagBuilder BuildEmptyTableBody()
+        private static TagBuilder BuildEmptyTableBody(TableConfiguration config)
         {
             TagBuilder tbody = new TagBuilder("tbody");
             tbody.MergeAttribute("class", "elate-main-tbody");
-            tbody.MergeAttribute("data-max-items", _config.PaginationConfig?.MaxItemsInPage.ToString() ?? "0");
+            tbody.MergeAttribute("data-max-items", config.PaginationConfig?.MaxItemsInPage.ToString() ?? "0");
 
             TagBuilder tr = new TagBuilder("tr");
             TagBuilder td = new TagBuilder("td");
-            var serviceColumn = _config.ServiceColumnsConfig;
+            var serviceColumn = config.ServiceColumnsConfig;
 
             bool isSelectionColumnExist = !string.IsNullOrEmpty(serviceColumn.IndexerField);
-            td.MergeAttribute("colspan", _totalColumnCount.ToString());
+
+            td.MergeAttribute("colspan", "100");
             td.MergeAttribute("class", " text-center pager-main-empty");
 
-            td.SetInnerText(_config.MessageForEmptyTable);
+            td.SetInnerText(config.MessageForEmptyTable);
             tr.InnerHtml = td.ToString();
             tbody.InnerHtml += tr;
-            if (_config.PaginationConfig != null)
+            if (config.PaginationConfig != null)
             {
-                tbody.InnerHtml += GetPagination();
+                tbody.InnerHtml += GetPagination(config, 100);
             }
             return tbody;
         }
 
-        public static TagBuilder GetPagination()
+        public static TagBuilder GetPagination(TableConfiguration config, int _totalColumnCount)
         {
-            var totalPages = (int)Math.Ceiling((decimal)_config.PaginationConfig.TotalListLength /
-                                                   _config.PaginationConfig.MaxItemsInPage);
+            var totalPages = (int)Math.Ceiling((decimal)config.PaginationConfig.TotalListLength /
+                                                   config.PaginationConfig.MaxItemsInPage);
 
-            var currentPage = (int)Math.Ceiling((decimal)_config.PaginationConfig.Offset /
-                                                    _config.PaginationConfig.MaxItemsInPage) + 1;
+            var currentPage = (int)Math.Ceiling((decimal)config.PaginationConfig.Offset /
+                                                    config.PaginationConfig.MaxItemsInPage) + 1;
 
-            int[] pagesOutputArray = GetPaginationNumbersSequence(totalPages, currentPage);
+            int[] pagesOutputArray = GetPaginationNumbersSequence(config, totalPages, currentPage);
 
             TagBuilder tr = new TagBuilder("tr");
             tr.MergeAttribute("data-pager", "true");
             tr.MergeAttribute("data-current-page", currentPage.ToString());
-            tr.MergeAttribute("data-max-pages", _config.PaginationConfig.TotalPagesMax.ToString());
-            var serviceColumn = _config.ServiceColumnsConfig;
+            tr.MergeAttribute("data-max-pages", config.PaginationConfig.TotalPagesMax.ToString());
+            var serviceColumn = config.ServiceColumnsConfig;
 
             bool isSelectionColumnExist = !string.IsNullOrEmpty(serviceColumn.IndexerField);
 
@@ -605,9 +623,11 @@ namespace ElateTableFramework
             return tr;
         }
 
-        public static string BuildModalHtmlString(PropertyInfo[] properties)
+        public static string BuildModalHtmlString(TableConfiguration config, PropertyInfo[] properties, 
+                                                  Dictionary<string, string> renamedAndOriginalHeaders,
+                                                  Dictionary<string, string> nonMergedHeadersAndTypes)
         {
-            var buttons = _config.ServiceColumnsConfig.Buttons;
+            var buttons = config.ServiceColumnsConfig.Buttons;
             string modalHtml = "";
             foreach (var button in buttons)
             {
@@ -615,32 +635,55 @@ namespace ElateTableFramework
                 {
                     var editButton = button as EditButton;
                     var inputs = new StringBuilder();
-                    foreach(var header in renamedAndOriginalHeaders)
+                    foreach (var header in renamedAndOriginalHeaders)
                     {
                         var disabled = editButton.NonEditableColumns.Contains(header.Value) ? "readonly" : "";
 
-                        var isCombobox = nonMergedheadersAndTypes[header.Value] == "combo-box";
-                        var isEnum = nonMergedheadersAndTypes[header.Value] == "enum";
+                        var isCombobox = nonMergedHeadersAndTypes[header.Value] == "combo-box";
+                        var isEnum = nonMergedHeadersAndTypes[header.Value] == "enum";
 
                         if (isCombobox || isEnum)
                         {
-                            string[] names;
+                            List<string> names;
                             if (isCombobox)
                             {
-                                names = _config.FieldsForCombobox[header.Value];
+                                names = config.FieldsForCombobox[header.Value].ToList();
                             }
                             else
                             {
                                 var prop = properties.Where(x => x.Name == header.Value).FirstOrDefault();
-                                names = prop.PropertyType.GetEnumNames();
+                                var enumFields = prop.PropertyType.GetFields();
+                                names = prop.PropertyType.GetEnumNames().ToList();
+                                foreach (var enumField in enumFields)
+                                {
+                                    if (names.Contains(enumField.Name))
+                                    {
+                                        var attributes = enumField.CustomAttributes;
+                                        var renameAttribute = attributes.Where(x => x.AttributeType ==
+                                                                     typeof(EnumRenameAttribute)).FirstOrDefault();
+                                        if (renameAttribute != null)
+                                        {
+                                            var index = names.FindIndex(x => x == enumField.Name);
+                                            var newName = renameAttribute.NamedArguments.FirstOrDefault().TypedValue.Value;
+                                            names[index] = newName.ToString();
+                                        }
+                                    }
+                                }
                             }
                             inputs.Append(@"<tr><td style='padding:5px'><label for='" + header.Value + "'>" + header.Key +
                                    "</label></td><td style='padding:5px'><select id='" + header.Value + "' " +
                                    "class='form-control' name='" + header.Value + "'" + disabled + ">");
 
-                            for (var i = 0; i < names.Length; i++)
+                            for (var i = 0; i < names.Count; i++)
                             {
-                                inputs.Append(@"<option value=" + i + ">" + names[i] + "</option>");
+                                if (isCombobox)
+                                {
+                                    inputs.Append(@"<option value=" + names[i] + ">" + names[i] + "</option>");
+                                }
+                                else
+                                {
+                                    inputs.Append(@"<option value=" + i + ">" + names[i] + "</option>");
+                                }
                             }
 
                             inputs.Append("</select></td></tr>");
@@ -652,12 +695,12 @@ namespace ElateTableFramework
                                    "class='form-control' name='" + header.Value + "'" + disabled + " />" +
                                    "</td></tr>");
                         }
-                        
+
                     }
 
                     modalHtml += @"
-                    <div class='modal fade bd-example-modal-sm' id='editModal' tabindex='-1' role='dialog' 
-                                                       aria-labelledby='exampleModalLabel' aria-hidden='true'>
+                    <div class='modal fade bd-example-modal-sm' id='" + config.TableId + @"-editModal' tabindex='-1' 
+                                        role='dialog' aria-labelledby='exampleModalLabel' aria-hidden='true'>
                         <div class='modal-dialog modal-sm' role='document'>
                             <div class='modal-content text-center'>
                                 <div class='modal-header'>
@@ -666,7 +709,7 @@ namespace ElateTableFramework
                                         <span aria-hidden='true'>&times;</span>
                                     </button>
                                 </div>
-                                <form id='editForm' method='post'>
+                                <form id='" + config.TableId + @"-editForm' method='post'>
                                     <div class='modal-body'><table>" + inputs.ToString() + @"</table></div>
                                     <div class='modal-footer'>
                                         <button type='button' class='btn btn-secondary' data-dismiss='modal'>" + 
@@ -683,8 +726,8 @@ namespace ElateTableFramework
                 {
                     var deleteButton = button as DeleteButton;
                     modalHtml += @"
-                    <div class='modal fade bd-example-modal-sm' id='deleteModal' tabindex='-1' role='dialog' 
-                                                            aria-labelledby='exampleModalLabel' aria-hidden='true'>
+                    <div class='modal fade bd-example-modal-sm' id='" + config.TableId + @"-deleteModal' 
+                           tabindex='-1' role='dialog' aria-labelledby='exampleModalLabel' aria-hidden='true'>
                         <div class='modal-dialog modal-sm' role='document'>
                             <div class='modal-content'>
                                 <div class='modal-header'>
@@ -697,8 +740,8 @@ namespace ElateTableFramework
                                 <div class='modal-footer'>
                                     <button type='button' class='btn btn-secondary' data-dismiss='modal'>" +
                                                              deleteButton.ModalCancelButtonText + @"</button>
-                                    <button id='deleteButton' type='button' class='btn btn-danger'>" +
-                                                             deleteButton.ModalConfirmButtonText + @"</button>
+                                    <button id='" + config.TableId + @"-deleteButton' type='button'" +
+                                    "class='btn btn-danger'>" + deleteButton.ModalConfirmButtonText + @"</button>
                                 </div>
                             </div>
                         </div>

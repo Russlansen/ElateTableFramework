@@ -10,9 +10,10 @@ namespace ElateTableFramework
 {
     public static partial class TableHelper
     {
-        private static int[] GetPaginationNumbersSequence(int totalPages, int currentPage)
+        private static int[] GetPaginationNumbersSequence(TableConfiguration config, 
+                                                                              int totalPages, int currentPage)
         {
-            var pagerConfig = _config.PaginationConfig;
+            var pagerConfig = config.PaginationConfig;
 
             int pagerMiddle = (int)Math.Ceiling((double)pagerConfig.TotalPagesMax / 2);
 
@@ -58,14 +59,15 @@ namespace ElateTableFramework
             return pagesArray;
         }
 
-        private static Dictionary<string, string> SortByHeader(Dictionary<string, string> headersDictionary)
+        private static Dictionary<string, string> SortByHeader(TableConfiguration config, 
+                                                                Dictionary<string, string> headersDictionary)
         {
-            bool isColumnsOrdered = _config.ColumnOrder != null && _config.ColumnOrder.Count > 0;
+            bool isColumnsOrdered = config.ColumnOrder != null && config.ColumnOrder.Count > 0;
 
             if (isColumnsOrdered)
             {
                 var targetHeaders = new Dictionary<int, KeyValuePair<string, string>>();
-                var order = _config.ColumnOrder;
+                var order = config.ColumnOrder;
                 var headersList = new List<KeyValuePair<string, string>>(headersDictionary);
 
                 foreach (var header in headersList)
@@ -94,13 +96,13 @@ namespace ElateTableFramework
             }
         }
 
-        private static string SetAttribute(Tag tagName)
+        private static string SetAttribute(TableConfiguration config, Tag tagName)
         {
             StringBuilder classBuilder = new StringBuilder();
             StringBuilder dataAttrBuilder = new StringBuilder();
-            if (_config.SetClass != null && _config.SetClass.ContainsKey(tagName))
+            if (config.SetClass != null && config.SetClass.ContainsKey(tagName))
             {
-                classBuilder.Append(_config.SetClass[tagName]);
+                classBuilder.Append(config.SetClass[tagName]);
             }
 
             switch (tagName)
@@ -145,12 +147,12 @@ namespace ElateTableFramework
             return classBuilder.ToString();
         }
 
-        private static string GetFormatedValue(object entity, PropertyInfo property)
+        private static string GetFormatedValue(TableConfiguration config, object entity, PropertyInfo property)
         {
             var entityValue = property.GetValue(entity);
-            var propertyType = GetColumnType(property);
-            bool isFormatted = (_config.ColumnFormat != null &&
-                               _config.ColumnFormat.ContainsKey(property.Name));
+            var propertyType = GetColumnType(config, property);
+            bool isFormatted = (config.ColumnFormat != null &&
+                               config.ColumnFormat.ContainsKey(property.Name));
 
             if (!isFormatted && propertyType != "enum")
             {
@@ -162,7 +164,7 @@ namespace ElateTableFramework
                 var names = property.PropertyType.GetEnumNames().ToList();
                 foreach (var enumField in enumFields)
                 {
-                    if (names.Contains(enumField.Name))
+                    if (names.Contains(enumField.Name) && enumField.Name == entityValue.ToString())
                     {
                         var attributes = enumField.CustomAttributes;
                         var renameAttribute = attributes.Where(x => x.AttributeType ==
@@ -180,22 +182,24 @@ namespace ElateTableFramework
             }
             else if (propertyType == "date-time")
             {
-                var format = _config.ColumnFormat[property.Name];
+                var format = config.ColumnFormat[property.Name];
                 var date = (DateTime)entityValue;
                 return date.ToString(format);
             }
             else if (propertyType == "number")
             {
-                var format = _config.ColumnFormat[property.Name];
+                var format = config.ColumnFormat[property.Name];
                 var number = Convert.ToDouble(entityValue);
                 return number.ToString(format);
             }
             else return entityValue.ToString();
         }
 
-        private static string GetColumnType(PropertyInfo property)
+        private static string GetColumnType(TableConfiguration config, PropertyInfo property)
         {
-            if (_config.FieldsForCombobox.ContainsKey(property.Name))
+            bool isCombobox = config.FieldsForCombobox != null &&
+                              config.FieldsForCombobox.ContainsKey(property.Name);
+            if (isCombobox)
             {
                 return "combo-box";
             }
@@ -218,15 +222,15 @@ namespace ElateTableFramework
             }   
         }
 
-        private static string CalculateColumnWidth(string header)
+        private static string CalculateColumnWidth(TableConfiguration config, string header, int _totalColumnCount)
         {
-            if (_config.ColumnWidthInPercent != null &&
-                    _config.ColumnWidthInPercent.ContainsKey(header))
+            if (config.ColumnWidthInPercent != null &&
+                    config.ColumnWidthInPercent.ContainsKey(header))
             {
-                int percent = _config.ColumnWidthInPercent[header];
+                int percent = config.ColumnWidthInPercent[header];
                 return $"max-width:{percent}%;width:{percent}%";
             }
-            else if (_config.ColumnWidthInPercent == null)
+            else if (config.ColumnWidthInPercent == null)
             {
                 double columnWidth = 100.0 / _totalColumnCount;
                 string outString = columnWidth.ToString("0.00").Replace(",", ".");
@@ -234,8 +238,8 @@ namespace ElateTableFramework
             }
             else
             {
-                int specifiedColumnCount = _config.ColumnWidthInPercent.Count();
-                double specifiedWidth = _config.ColumnWidthInPercent.Sum(x => x.Value);
+                int specifiedColumnCount = config.ColumnWidthInPercent.Count();
+                double specifiedWidth = config.ColumnWidthInPercent.Sum(x => x.Value);
                 double unspecifiedWidth = 100 - specifiedWidth;
                 double restColumns = _totalColumnCount - specifiedColumnCount;
                 double calculatedWidth = unspecifiedWidth / restColumns;
@@ -244,13 +248,14 @@ namespace ElateTableFramework
             }
         }
 
-        public static IEnumerable<PropertyInfo> GetIncludedPropertyList(PropertyInfo[] properties)
+        public static IEnumerable<PropertyInfo> GetIncludedPropertyList(TableConfiguration config, 
+                                                                                    PropertyInfo[] properties)
         {
             var includedPropertyList = new List<PropertyInfo>();
-            bool isExcludedSpecified = _config.Exclude != null;
+            bool isExcludedSpecified = config.Exclude != null;
             foreach (var property in properties)
             {
-                bool isPropertyExcluded = isExcludedSpecified && _config.Exclude.Contains(property.Name);
+                bool isPropertyExcluded = isExcludedSpecified && config.Exclude.Contains(property.Name);
                 if (!isPropertyExcluded) includedPropertyList.Add(property);
             }
 

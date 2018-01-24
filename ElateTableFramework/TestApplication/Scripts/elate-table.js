@@ -1,14 +1,15 @@
-﻿var orderType = "";
-var orderByField = "";
+﻿var orderType = {};
+var orderByField = {};
 var filteringFields = {};
 var dateFormat = "DD.MM.YYYY";
 var windowMinWidth = 650;
 var filterType = "";
-var checked = [];
+var checked = {};
 var globalAjaxData = {};
+var currentTableId = "";
 
 $(function () {
-    window.sessionStorage.removeItem('elate-table-checked');
+    var allTables = $("table.elate-main-table");
     var headers = $("table thead tr td.elate-main-thead-td");
     headers.click(switchArrows);
     headers.click(function (event) { getTableBodyAjax(event, true, false); });
@@ -25,26 +26,35 @@ $(function () {
     var filterSelect = headers.find(".filter-select");
     filterSelect.change(selectFilterType);
 
-    var sortField = $("table.elate-main-table").data("order-field");
-    orderByField = sortField !== undefined ? sortField : headers.first().data("original-field-name");
-
     var checkboxes = $(".command-column").find("input");
     checkboxes.click(checkboxHandler);
 
     var buttons = $(".service-column").find("input[type='button']");
     buttons.click(serviceButtonHandler);
 
-    var tableHeight = $("table.elate-main-table").height();
-    $("#loaderRotation").css({ top: tableHeight / 2 - 45 });
-    orderType = $("table.elate-main-table").data("order-type");
+    for (index in allTables) {
+        var table = $(allTables[index]);
+        var tableId = table.attr("id");
+
+        var sortField = table.data("order-field");
+        orderByField[tableId] = sortField !== undefined ? sortField : headers.first().data("original-field-name");
+
+        var height = $("table#" + tableId).height();
+        table.find("#loaderRotation").css({ top: height / 2 - 45 }); //centring loader
+        checked[tableId] = [];
+        window.sessionStorage.removeItem(tableId + '-checked');
+        orderType[tableId] = table.data("order-type");
+        refreshCheckboxes(tableId);
+    }
+    
     setDatepickerEvents();
-    refreshCheckboxes();
 });
 
 function getTableBodyAjax(event, isSorting, isFiltering) {
     event.preventDefault();
     var target = $(event.target);
     var table = target.closest('table.elate-main-table');
+    var tableId = table.attr("id");
 
     if (table.data("callback") === undefined ||
         table.data("callback") === "") {
@@ -103,25 +113,30 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
     }
     var page = "";
     globalAjaxData = {
-        OrderByField: orderByField,
-        OrderType: orderType,
-        Filters: filteringFields,
+        OrderByField: orderByField[tableId],
+        OrderType: orderType[tableId],
+        Filters: filteringFields[tableId],
         Offset: 1,
         MaxItemsInPage: tbody.data('max-items'),
         TotalPagesMax: tbody.find("[data-pager=true]").data("max-pages")
     };
+
     if (isFiltering) {
         page = currentPage;
-        filteringFields[fieldName] = JSON.stringify(filterData);
-        globalAjaxData.Filters = filteringFields;  
+        if (filteringFields[tableId] === undefined) {
+            filteringFields[tableId] = {};
+        }
+        filteringFields[tableId][fieldName] = JSON.stringify(filterData);
+        globalAjaxData.Filters = filteringFields[tableId];  
     }
     else if (isSorting) {
         page = currentPage;
-        globalAjaxData.Filters = filteringFields;
+        globalAjaxData.Filters = filteringFields[tableId];
     } else {
         page = link.attr("href");
-        globalAjaxData.Filters = filteringFields;
+        globalAjaxData.Filters = filteringFields[tableId];
     }
+
     globalAjaxData.Offset = tbody.data('max-items') * (page - 1);
     
     $.ajax({
@@ -129,8 +144,8 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         method: "POST",
         data: globalAjaxData,
         beforeSend: function () {
-            $("#loaderRotation").css({ top: table.height() / 2 });
-            $("#loaderRotation").show();
+            table.siblings("#loaderRotation").css({ top: table.height() / 2 });
+            table.siblings("#loaderRotation").show();
         },
         success: function (data) {
             table.find(".elate-main-tbody").replaceWith(data);
@@ -139,10 +154,10 @@ function getTableBodyAjax(event, isSorting, isFiltering) {
         complete: function () {
             var itemCheckboxes = $(".command-column").find("input[class='checkbox item-checkbox']");
             itemCheckboxes.click(checkboxHandler);
-            refreshCheckboxes();
+            refreshCheckboxes(tableId);
             var buttons = $(".service-column").find("input[type='button']");
             buttons.click(serviceButtonHandler);
-            $("#loaderRotation").hide();
+            table.siblings("#loaderRotation").hide();
         }
     });
 }
@@ -189,8 +204,8 @@ function selectFilterType(event) {
         if (columnType === "date-time") {
             container = target.closest("td").find(".range-container");
             container.replaceWith("<div class='input-group date filter-date-container' id='datetimepicker'>" +
-                "<input id='datepicker-date' style='border:0px;max-width: 100%;' type='text' class='form-control filter-input' />" +
-                "<span id='datepicker-open' style='border:0px;margin-left:1px' class='input-group-addon calendar-btn'>" +
+                "<input id='datepicker-date' style='border:0px;max-width: 80%;' type='text' class='form-control filter-input' />" +
+                "<span id='datepicker-open' style='border:0px;margin-left:0px' class='input-group-addon calendar-btn'>" +
                 "<i class='fa fa-calendar glyphicon glyphicon-calendar' aria-hidden='true'></i>" +
                 "</span></div>");  
         }
@@ -215,17 +230,18 @@ function getFilters(event, isOpening) {
 
     if (isOpening) {
         filterBtn.replaceWith("<i class='fa fa-times-circle glyphicon glyphicon-remove-sign close-filter-button' aria-hidden='true'></i>");
-        $(".close-filter-button").click(clearFilter);
+        td.find(".close-filter-button").click(clearFilter);
         $(".close-filter-button").click(function (event) { getFilters(event, false); });
         td.find(".range-container").slideDown(200, "linear");
         select.slideDown(200, "linear");
         input.slideDown(200, "linear");
         td.find(".filter-date-container").slideDown(200, "linear");
     } else {
+        td.find(".close-filter-button").off("click");
         filterBtn.replaceWith("<i class='fa fa-filter glyphicon glyphicon-filter filter-button' aria-hidden='true'></i>");
         $(".filter-button").click(function (event) { getFilters(event, true); });
         input.val("");
-        td.find(".range-container").children().val("");
+        td.find(".range-container").find("input").val("");
         td.find(".range-container").slideUp(200, "linear");
         select.slideUp(200, "linear");
         input.slideUp(200, "linear");
@@ -236,34 +252,37 @@ function getFilters(event, isOpening) {
 function clearFilter(event) {
     var target = $(event.target);
     var table = target.closest('table');
+    var tableId = table.attr("id");
     var tbody = table.children('tbody');
     var fieldName = target.closest("td").data("original-field-name");
     var currentPage = table.find("tr[data-pager='true']").data("current-page");
-    delete filteringFields[fieldName];
-    var Data = {
-        Page: currentPage,
-        OrderByField: orderByField,
-        OrderType: orderType,
-        Filters: filteringFields,
-        MaxItemsInPage: tbody.data('max-items'),
-        TotalPagesMax: tbody.find("[data-pager=true]").data("max-pages"),
-        Offset: tbody.data('max-items') * (currentPage - 1)
-    };
-    $.ajax({
-        url: table.data("callback"),
-        method: "POST",
-        data: Data,
-        success: function (data) {
-            table.find(".elate-main-tbody").replaceWith(data);
-            table.find(".pager-main a").click(getTableBodyAjax);
-        },
-        complete: function () {
-            var mainCheckbox = $(".command-column").find("input[id='checkboxMain']");
-            mainCheckbox.prop("checked", false);
-            var buttons = $(".service-column").find("input[type='button']");
-            buttons.click(serviceButtonHandler);
-        }
-    });
+    if (filteringFields[tableId] !== undefined) {
+        delete filteringFields[tableId][fieldName];
+        globalAjaxData = {
+            Page: currentPage,
+            OrderByField: orderByField,
+            OrderType: orderType,
+            Filters: filteringFields[tableId],
+            MaxItemsInPage: tbody.data('max-items'),
+            TotalPagesMax: tbody.find("[data-pager=true]").data("max-pages"),
+            Offset: tbody.data('max-items') * (currentPage - 1)
+        };
+        $.ajax({
+            url: table.data("callback"),
+            method: "POST",
+            data: globalAjaxData,
+            success: function (data) {
+                table.find(".elate-main-tbody").replaceWith(data);
+                table.find(".pager-main a").click(getTableBodyAjax);
+            },
+            complete: function () {
+                var mainCheckbox = table.find(".command-column").find("input[id='checkboxMain']");
+                mainCheckbox.prop("checked", false);
+                var buttons = table.find(".service-column").find("input[type='button']");
+                buttons.click(serviceButtonHandler);
+            }
+        });
+    }
 }
 
 function switchArrows(event) {
@@ -271,14 +290,15 @@ function switchArrows(event) {
         $(event.target).closest('a').hasClass("sorting-links")) {
 
         var targetIndex = $(this).index();
-        orderByField = $(this).data("original-field-name");
+        var tableId = $(event.target).closest("table").attr("Id");
+        orderByField[tableId] = $(this).data("original-field-name");
         $(this).closest('tr').children().each(function (index) {
             if (index !== targetIndex) {
                 $(this).find('[data-sort]').attr("style", "visibility:hidden");
             }
         });
-
-        orderType === "ASC" ? orderType = "DESC" : orderType = "ASC";
+        tableId = $(event.target).closest('table.elate-main-table').attr("Id");
+        orderType[tableId] === "ASC" ? orderType[tableId] = "DESC" : orderType[tableId] = "ASC";
 
         var isWide = $(window).width() > windowMinWidth;
         var downArrow = $(this).find('[data-sort="down"]');
@@ -320,8 +340,10 @@ function setDatepickerEvents() {
 }
 
 function checkboxHandler(event, isMain) {
+    var tableId = $(event.target).closest("table").attr("id");
     var checkbox;
-    var headColumn = $("table.elate-main-table thead tr td.command-column");
+    var headColumn = $("table#" + tableId + " thead tr td.command-column");
+    var callback = $(event.target).closest("td").data("select-all-callback");
 
     if (event) {
         checkbox = $(event.target);
@@ -329,15 +351,15 @@ function checkboxHandler(event, isMain) {
     else {
         checkbox = headColumn.find("input[type]");
     }
-   
-    if (checkbox.attr('id') === "checkboxMain") {
+    
+    if (checkbox.attr('id') === tableId + "checkboxMain") {
         var thead = checkbox.closest("thead");
         var commandColumnCells = thead.siblings('tbody').find('td.command-column');
         var isAjaxExecuting = false;
         if (checkbox.is(':checked')) {
             commandColumnCells.find("input[type]").prop('checked', true);
             $.ajax({
-                url: "Home/Selection",
+                url: callback,
                 method: "POST",
                 async: true,
                 data: {
@@ -346,20 +368,20 @@ function checkboxHandler(event, isMain) {
                 },
                 beforeSend: function () {
                     var isAjaxExecuting = true;
-                    $("#loaderRotation").show();
+                    $(event.target).find("div#loaderRotation").show();
                 },
                 success: function (data) {
-                    checked = JSON.parse(data); 
-                    window.sessionStorage.setItem('elate-table-checked', checked);
+                    checked[tableId] = JSON.parse(data); 
+                    window.sessionStorage.setItem(tableId + '-checked', checked[tableId]);
                 },
                 complete: function () {
                     var isAjaxExecuting = false;
-                    $("#loaderRotation").hide();
+                    $(event.target).find("div#loaderRotation").hide();
                 }
             });
         }
         else {
-            checked = [];
+            checked[tableId] = [];
             commandColumnCells.find("input[type]").prop('checked', false);
         }
     }
@@ -367,29 +389,29 @@ function checkboxHandler(event, isMain) {
         var valueOfIndexer = checkbox.closest('td').data('row-indexer');
         if (checkbox.is(':checked')) {
             if (checkbox.attr('type') === 'radio') {
-                checked = [];
+                checked[tableId] = [];
             }
-            checked.push(valueOfIndexer);    
+            checked[tableId].push(valueOfIndexer);    
         }
         else {
-            checked.splice(checked.indexOf(valueOfIndexer), 1);
+            checked[tableId].splice(checked[tableId].indexOf(valueOfIndexer), 1);
             var tbody = checkbox.closest("tbody");
             var mainCheckboxCell = tbody.siblings('thead').find('td.command-column');
             mainCheckboxCell.find("input[type]").prop('checked', false);
         }
     }
     if (!isAjaxExecuting) {
-        window.sessionStorage.setItem('elate-table-checked', checked);
+        window.sessionStorage.setItem(tableId + '-checked', checked[tableId]);
     }
 }
 
-function refreshCheckboxes() {
-    var commandColumn = $("table tbody .command-column");
+function refreshCheckboxes(tableId) {
+    var commandColumn = $("table#" + tableId + " tbody .command-column");
 
     for (i = 0; i < commandColumn.length; i++) {
         var commandColumnItem = $(commandColumn[i]);
-        for (j = 0; j < checked.length; j++) {
-            if (commandColumnItem.data('row-indexer') === checked[j]) {
+        for (key in checked[tableId]) {
+            if (commandColumnItem.data('row-indexer') === checked[tableId][key]) {
                 commandColumnItem.find("input[type]").prop('checked', true);
             }
         } 
@@ -398,36 +420,49 @@ function refreshCheckboxes() {
 
 function serviceButtonHandler(event) {
     var target = $(event.target);
+    var tableId = target.closest("table").attr("id");
     var indexer = target.closest('td').data('row-indexer');
+
     if (target.data("edit-btn") === true) {
+
         var row = target.closest("tr");
         var cells = row.find(".elate-main-td");
         var headers = row.closest("tbody").siblings("thead").find(".elate-main-thead-td");
+
         for (i = 0; i < cells.length; i++) {
+
             var text = cells[i].innerText;
             var arr = text.split('\u2063'); // "\u2063" - invisible divider
-            var type = $(headers[i]).data("column-type");
+            var columnType = $(headers[i]).data("column-type");
+
             if (arr.length > 1) {
-                arr = arr.filter(function (val) { return val.indexOf(" ") });
+                arr = arr.filter(function (val) { return val.indexOf(" "); });
                 var mergedColumns = $(headers[i]).data("merged-with").split(",");
                 var mergedTypes = $(headers[i]).data("merged-types").split(",");
                 for (j = 0; j < mergedColumns.length; j++) {
-                    var input = $('#editModal').find('input[id=' + mergedColumns[j] + ']');
+                    var input = $('#' + tableId + '-editModal').find('input[id=' + mergedColumns[j] + ']');
                     input.val(arr[j]);
                     input.attr("type", mergedTypes[j] !== 'date-time' ? mergedTypes[j] : "date" );
                 }   
             }
             else {
-                var input = $('#editModal').find('input[id=' + $(headers[i]).data("original-field-name") + ']');
-                input.attr("type", type !== 'date-time' ? type : "date");
-                if (type === 'date-time') {
+                input = $('#' + tableId + '-editModal').find('input[id=' + $(headers[i]).data("original-field-name") + ']');
+                input.attr("type", columnType !== 'date-time' ? columnType : "date");
+                if (columnType === 'number') {
+                    input.attr("step", "any")
+                    text = text.replace(",", ".");
+                    text = parseFloat(text);
+                }
+
+                if (columnType === 'date-time') {
                     var date = parseDate(text, true);
                     var dateISO = date.toISOString();
                     var outputDate = dateISO.replace("T00:00:00.000Z", "");
                     input.val(outputDate);
                 }
-                else if (type === 'enum' || type === 'combo-box') {
-                    var select = $('#editModal').find('select[id=' + $(headers[i]).data("original-field-name") + ']');
+                else if (columnType === 'enum' || columnType === 'combo-box') {
+                    var select = $('#' + tableId + '-editModal').find('select[id=' +
+                                                            $(headers[i]).data("original-field-name") + ']');
                     var options = select.children();
         
                     for (var k = 0; k < options.length; k++) {
@@ -443,7 +478,7 @@ function serviceButtonHandler(event) {
                 }
             }  
         }
-        $("#editForm").on("submit", function (localEvent) {
+        $('#' + tableId + '-editForm').on("submit", function (localEvent) {
             localEvent.preventDefault();
             var data = $(this).serialize();
             $.ajax({
@@ -454,19 +489,19 @@ function serviceButtonHandler(event) {
                     getTableBodyAjax(event, false, true);
                 },
                 complete: function () {
-                    $('#editModal').modal('hide');
+                    $('#' + tableId + '-editModal').modal('hide');
                 }
             });
         });
-        $('#editModal').modal('show');
-        $('#editModal').on('hidden.bs.modal', function () {
-            $("#editForm").off("submit");
-        })
+        $('#' + tableId + '-editModal').modal('show');
+        $('#' + tableId + '-editModal').on('hidden.bs.modal', function () {
+            $('#' + tableId + '-editForm').off("submit");
+        });
     }
     else if (target.data("delete-btn") === true) {
-        $('#deleteButton').off("click");
-        $('#deleteModal').modal('show');
-        $('#deleteButton').click(function () { serviceButtonSendAjax(event, indexer) });
+        $('#' + tableId + '-deleteButton').off("click");
+        $('#' + tableId + '-deleteModal').modal('show');
+        $('#' + tableId + '-deleteButton').click(function () { serviceButtonSendAjax(event, indexer); });
     }
     else {
         serviceButtonSendAjax(event, indexer);

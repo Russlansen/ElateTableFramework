@@ -9,7 +9,8 @@ namespace ElateTableFramework
 {
     public interface IElateTableRepository<T>
     {
-        IEnumerable<T> GetPagination(PaginationConfig config);
+        IEnumerable<T> GetDataWithPagination(PaginationConfig pageronfig, 
+                                             IEnumerable<TypeJoinConfiguration> joinConfig = null);
 
         IEnumerable<string> GetUniqueItems(string field);
 

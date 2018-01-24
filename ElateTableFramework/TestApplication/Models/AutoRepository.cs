@@ -15,7 +15,7 @@ namespace TestApplication.Models
     public class AutoRepository : IElateTableRepository<Auto>
     {
         string connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
-        public List<Auto> GetUsers()
+        public List<Auto> GetAutos()
         {
             List<Auto> auto = new List<Auto>();
             using (IDbConnection db = new SqlConnection(connectionString))
@@ -25,15 +25,24 @@ namespace TestApplication.Models
             return auto;
         }
 
-        public IEnumerable<Auto> GetPagination(PaginationConfig config)
+        public void AddAuto(Auto auto)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {
-                return db.GetPagination<Auto>(config);
+                db.Insert(auto);
+            }
+        }
+
+        public IEnumerable<Auto> GetDataWithPagination(PaginationConfig config, 
+                                                        IEnumerable<TypeJoinConfiguration> joinConfig = null)
+        {
+            using (IDbConnection db = new SqlConnection(connectionString))
+            {
+                return db.GetDataWithPagination<Auto>(config);
             }       
         }
 
-        public string GetIndexerJsonArray(PaginationConfig config, string fieldName = null)
+        public string GetIndexerJsonArray(PaginationConfig config, string fieldName)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {

@@ -17,5 +17,10 @@ namespace TestApplication.Models
         public string LastName { get; set; }
 
         public int Age { get; set; }
+
+        public int ModelId { get; set; } 
+
+        public Auto Auto { get; set; }
+
     }
 }

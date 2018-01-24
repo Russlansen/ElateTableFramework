@@ -13,7 +13,11 @@ namespace ElateTableFramework.Configuration
         public List<string> Exclude { get; set; }
 
         public string MessageForEmptyTable { get; set; }
-        public Dictionary<string, string[]> Merge { get; set; }
+
+        public Dictionary<string, string[]> MergeColumns { get; set; }
+
+        public List<TypeJoinConfiguration> JoinTables { get; set; }
+
         public string MergeDivider { get; set; }
 
         public Dictionary<string, int> ColumnOrder { get; set; }
@@ -30,6 +34,8 @@ namespace ElateTableFramework.Configuration
 
         public string CallbackController { get; set; }
 
+        public string TableId { get; set; }
+
         public Dictionary<string, string[]> FieldsForCombobox { get; set; }
 
         public Dictionary<Tag, string> SetClass { get; set; }
@@ -38,16 +44,21 @@ namespace ElateTableFramework.Configuration
 
         public ColorScheme ColorScheme { get; set; }
 
-        public TableConfiguration()
+        public TableConfiguration(string tableId)
         {
+            TableId = tableId;
             MergeDivider = " ";
             RowsHighlight = false;
             ServiceColumnsConfig = new ServiceColumnsConfig();
-            Merge = new Dictionary<string, string[]>();
+            MergeColumns = new Dictionary<string, string[]>();
             MessageForEmptyTable = "Empty";
             ColorScheme = ColorScheme.Default;
             ColumnOrder = new Dictionary<string, int>();
             Rename = new Dictionary<string, string>();
+            SetClass = new Dictionary<Tag, string>()
+            {
+                { Tag.Table, "table table-bordered" },
+            };
         }
     }
 
