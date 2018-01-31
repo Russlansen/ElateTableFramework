@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ElateTableFramework.Configuration
 {
-    public class PaginationConfig
+    public class ConditionsConfig
     {
         public int MaxItemsInPage { get; set; }
 
@@ -22,7 +22,7 @@ namespace ElateTableFramework.Configuration
 
         public Dictionary<string, string> Filters { get; set; }
 
-        public PaginationConfig()
+        public ConditionsConfig()
         {
             TotalPagesMax = 5;
             OrderType = OrderType.ASC;
@@ -34,5 +34,13 @@ namespace ElateTableFramework.Configuration
     {
         ASC,
         DESC
+    }
+
+    enum RangeState
+    {
+        Range,
+        GreaterThan,
+        LessThan,
+        Undefined
     }
 }

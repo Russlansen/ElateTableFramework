@@ -149,7 +149,27 @@ namespace ElateTableFramework
 
         private static string GetFormatedValue(TableConfiguration config, object entity, PropertyInfo property)
         {
-            var entityValue = property.GetValue(entity);
+            object entityValue = new object();
+            bool isProperyJoined = config.JoiningTable != null &&
+                                    config.JoiningTable.JoinedFields.Contains(property.Name);
+
+            if (isProperyJoined)
+            {
+                var joinedProperty = entity.GetType()
+                                           .GetProperties()
+                                           .Where(x => x.Name == config.JoiningTable.TargetType.Name)
+                                           .FirstOrDefault();
+                                           
+                var currentProperty = joinedProperty.PropertyType.GetProperties()
+                                         .Where(x => x.Name == property.Name)
+                                         .FirstOrDefault();
+
+                entityValue = currentProperty.GetValue(joinedProperty.GetValue(entity));
+            }
+            else
+            {
+                entityValue = property.GetValue(entity);
+            }
             var propertyType = GetColumnType(config, property);
             bool isFormatted = (config.ColumnFormat != null &&
                                config.ColumnFormat.ContainsKey(property.Name));
@@ -256,7 +276,21 @@ namespace ElateTableFramework
             foreach (var property in properties)
             {
                 bool isPropertyExcluded = isExcludedSpecified && config.Exclude.Contains(property.Name);
-                if (!isPropertyExcluded) includedPropertyList.Add(property);
+                bool isProperyComplex = config.JoiningTable != null && 
+                                        property.PropertyType.FullName == config.JoiningTable.TargetType.FullName;
+
+                if (isProperyComplex)
+                {
+                    var joiningTable = config.JoiningTable;
+                    var joinedProperty = joiningTable.TargetType.GetProperties()
+                                                    .Where(x => joiningTable.JoinedFields.Contains(x.Name));
+
+                    includedPropertyList.AddRange(joinedProperty);
+                }
+                else if (!isPropertyExcluded)
+                {
+                    includedPropertyList.Add(property);
+                }
             }
 
             return includedPropertyList;

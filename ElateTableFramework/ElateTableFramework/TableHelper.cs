@@ -75,7 +75,7 @@ namespace ElateTableFramework
             var serviceButtons = config.ServiceColumnsConfig?.Buttons;
             if (serviceButtons != null && serviceButtons.Any())
             {
-                outputHtml += BuildModalHtmlString(config, properties, renamedAndOriginalHeaders, 
+                outputHtml += BuildModalHtmlString<T>(config, properties, renamedAndOriginalHeaders, 
                                                                                     nonMergedHeadersAndTypes);
             }
             return new MvcHtmlString(outputHtml);
@@ -135,7 +135,10 @@ namespace ElateTableFramework
                 }
                 else continue;
 
-                columnsHeadersAndTypes.Add(columnHeader, columnType);
+                if (!columnsHeadersAndTypes.ContainsKey(columnHeader))
+                {
+                    columnsHeadersAndTypes.Add(columnHeader, columnType);
+                } 
             }
 
             var columnsHeadersAndTypesSorted = SortByHeader(config, columnsHeadersAndTypes);
@@ -268,6 +271,16 @@ namespace ElateTableFramework
                     case "enum":
                         {
                             var prop = properties.Where(x => x.Name == header).FirstOrDefault();
+                            if(prop == null)
+                            {
+                                var joinedProperties = properties.Where(x => x.PropertyType.FullName == 
+                                                                             config.JoiningTable.TargetType.FullName)
+                                                                 .FirstOrDefault()
+                                                                 .PropertyType
+                                                                 .GetProperties();
+
+                                prop = joinedProperties.Where(x => x.Name == header).FirstOrDefault();
+                            }
                             var enumFields = prop.PropertyType.GetFields();
                             var names = prop.PropertyType.GetEnumNames().ToList();
                             foreach(var enumField in enumFields)
@@ -408,7 +421,10 @@ namespace ElateTableFramework
                         string cellValue = GetFormatedValue(config, entity, property);
                         bool isContainsKey = config.Rename.ContainsKey(property.Name);
                         string headerName = isContainsKey ? config.Rename[property.Name] : property.Name;
-                        cellsInRow.Add(headerName, cellValue);
+                        if (!cellsInRow.ContainsKey(headerName))
+                        {
+                            cellsInRow.Add(headerName, cellValue);
+                        }   
                     }
                 }
                 var sortedCells = SortByHeader(config, cellsInRow);
@@ -623,7 +639,7 @@ namespace ElateTableFramework
             return tr;
         }
 
-        public static string BuildModalHtmlString(TableConfiguration config, PropertyInfo[] properties, 
+        public static string BuildModalHtmlString<T>(TableConfiguration config, PropertyInfo[] properties, 
                                                   Dictionary<string, string> renamedAndOriginalHeaders,
                                                   Dictionary<string, string> nonMergedHeadersAndTypes)
         {
@@ -631,9 +647,8 @@ namespace ElateTableFramework
             string modalHtml = "";
             foreach (var button in buttons)
             {
-                if(button is EditButton)
+                if(button is EditButton editButton)
                 {
-                    var editButton = button as EditButton;
                     var inputs = new StringBuilder();
                     foreach (var header in renamedAndOriginalHeaders)
                     {
@@ -641,6 +656,19 @@ namespace ElateTableFramework
 
                         var isCombobox = nonMergedHeadersAndTypes[header.Value] == "combo-box";
                         var isEnum = nonMergedHeadersAndTypes[header.Value] == "enum";
+
+                        var joinConfig = config.JoiningTable;
+                        var orderingTable = typeof(T).GetProperties()
+                                                     .Where(x => x.Name == header.Value)
+                                                     .FirstOrDefault();
+
+                        bool isPropertyFromJoinedTable = joinConfig != null &&
+                                                         joinConfig.JoinedFields.Contains(header.Value) &&
+                                                         orderingTable == null;
+
+                        var outputValue = isPropertyFromJoinedTable
+                                          ? config.JoiningTable.TargetType.Name + "." + header.Value
+                                          : header.Value;
 
                         if (isCombobox || isEnum)
                         {
@@ -652,6 +680,16 @@ namespace ElateTableFramework
                             else
                             {
                                 var prop = properties.Where(x => x.Name == header.Value).FirstOrDefault();
+                                if (prop == null)
+                                {
+                                    var joinedProperties = properties.Where(x => x.PropertyType.FullName ==
+                                                                                 config.JoiningTable.TargetType.FullName)
+                                                                     .FirstOrDefault()
+                                                                     .PropertyType
+                                                                     .GetProperties();
+
+                                    prop = joinedProperties.Where(x => x.Name == header.Value).FirstOrDefault();
+                                }
                                 var enumFields = prop.PropertyType.GetFields();
                                 names = prop.PropertyType.GetEnumNames().ToList();
                                 foreach (var enumField in enumFields)
@@ -670,9 +708,10 @@ namespace ElateTableFramework
                                     }
                                 }
                             }
+                            
                             inputs.Append(@"<tr><td style='padding:5px'><label for='" + header.Value + "'>" + header.Key +
                                    "</label></td><td style='padding:5px'><select id='" + header.Value + "' " +
-                                   "class='form-control' name='" + header.Value + "'" + disabled + ">");
+                                   "class='form-control' name='" + outputValue + "'" + disabled + ">");
 
                             for (var i = 0; i < names.Count; i++)
                             {
@@ -692,7 +731,7 @@ namespace ElateTableFramework
                         {
                             inputs.Append(@"<tr><td style='padding:5px'><label for='" + header.Value + "'>" + header.Key +
                                    "</label></td><td style='padding:5px'><input id='" + header.Value + "' " +
-                                   "class='form-control' name='" + header.Value + "'" + disabled + " />" +
+                                   "class='form-control' name='" + outputValue + "'" + disabled + " />" +
                                    "</td></tr>");
                         }
 
@@ -722,9 +761,8 @@ namespace ElateTableFramework
                         </div>
                     </div>";
                 }
-                else if(button is DeleteButton)
+                else if(button is DeleteButton deleteButton)
                 {
-                    var deleteButton = button as DeleteButton;
                     modalHtml += @"
                     <div class='modal fade bd-example-modal-sm' id='" + config.TableId + @"-deleteModal' 
                            tabindex='-1' role='dialog' aria-labelledby='exampleModalLabel' aria-hidden='true'>

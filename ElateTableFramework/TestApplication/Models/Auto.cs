@@ -30,5 +30,5 @@ namespace TestApplication.Models
         Red,
         [EnumRename(Name = "Зеленый")]
         Green
-    }
+    } 
 }

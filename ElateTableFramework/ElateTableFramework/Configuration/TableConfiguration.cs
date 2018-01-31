@@ -16,7 +16,7 @@ namespace ElateTableFramework.Configuration
 
         public Dictionary<string, string[]> MergeColumns { get; set; }
 
-        public List<TypeJoinConfiguration> JoinTables { get; set; }
+        public TypeJoinConfiguration JoiningTable { get; set; }
 
         public string MergeDivider { get; set; }
 
@@ -26,7 +26,7 @@ namespace ElateTableFramework.Configuration
 
         public Dictionary<string, byte> ColumnWidthInPercent { get; set; }
 
-        public PaginationConfig PaginationConfig { get; set; }
+        public ConditionsConfig PaginationConfig { get; set; }
 
         public ServiceColumnsConfig ServiceColumnsConfig { get; set; }
 

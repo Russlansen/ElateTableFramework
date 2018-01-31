@@ -33,8 +33,8 @@ namespace TestApplication.Models
             }
         }
 
-        public IEnumerable<Auto> GetDataWithPagination(PaginationConfig config, 
-                                                        IEnumerable<TypeJoinConfiguration> joinConfig = null)
+        public IEnumerable<Auto> GetDataWithPagination(ConditionsConfig config, 
+                                                       TypeJoinConfiguration joinConfig = null)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {
@@ -42,19 +42,11 @@ namespace TestApplication.Models
             }       
         }
 
-        public string GetIndexerJsonArray(PaginationConfig config, string fieldName)
+        public string GetIndexerJsonArray(ConditionsConfig config, string fieldName)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {
                 return db.GetIndexerJsonArray<Auto>(config, fieldName);
-            }
-        }
-
-        public IEnumerable<Auto> GetUsersPagination(OrderType type, string col)
-        {
-            using (IDbConnection db = new SqlConnection(connectionString))
-            {
-                return db.GetPagination<Auto>(type, col);
             }
         }
 

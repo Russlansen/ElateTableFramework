@@ -77,9 +77,9 @@
 }
 
 .filter-input {
-    border: 0px;
-    width: 80%;
-    max-width: 80%;
+    border: 0;
+    width: 100%;
+    max-width: 100%;
 }
 
 .filter-date-container {
@@ -94,11 +94,13 @@
 
 .filter-range {
     width: 100%;
+    margin-bottom: 2px;
 }
 
 .filter-range input {
     width: 100%;
-    max-width: 100%
+    max-width: 100%;
+    
 }
 
     .filter-date-container calendar-btn,
@@ -106,9 +108,6 @@
         width: 20%;
     }
 
-div.filter-range {
-    padding: 1px;
-}
 /************ PAGINATION ******************/
 .pager-main {
     text-decoration: none;

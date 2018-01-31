@@ -9,11 +9,11 @@ namespace ElateTableFramework
 {
     public interface IElateTableRepository<T>
     {
-        IEnumerable<T> GetDataWithPagination(PaginationConfig pageronfig, 
-                                             IEnumerable<TypeJoinConfiguration> joinConfig = null);
+        IEnumerable<T> GetDataWithPagination(ConditionsConfig pageronfig, 
+                                             TypeJoinConfiguration joinConfig = null);
 
         IEnumerable<string> GetUniqueItems(string field);
 
-        string GetIndexerJsonArray(PaginationConfig config, string fieldName = null);
+        string GetIndexerJsonArray(ConditionsConfig config, string fieldName = null);
     }
 }

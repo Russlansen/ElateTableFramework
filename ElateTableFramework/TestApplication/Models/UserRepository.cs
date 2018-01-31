@@ -32,8 +32,8 @@ namespace TestApplication.Models
             }
         }
 
-        public IEnumerable<User> GetDataWithPagination(PaginationConfig pagerConfig, 
-                                                       IEnumerable<TypeJoinConfiguration> joinConfig = null)
+        public IEnumerable<User> GetDataWithPagination(ConditionsConfig pagerConfig, 
+                                                       TypeJoinConfiguration joinConfig = null)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {
@@ -49,7 +49,7 @@ namespace TestApplication.Models
             }
         }
 
-        public string GetIndexerJsonArray(PaginationConfig config, string fieldName)
+        public string GetIndexerJsonArray(ConditionsConfig config, string fieldName)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {
@@ -65,11 +65,12 @@ namespace TestApplication.Models
             }
         }
 
-        public void Edit(User user)
+        public void Edit(User user, TypeJoinConfiguration joinedTable)
         {
             using (IDbConnection db = new SqlConnection(connectionString))
             {
-                db.Update(user);
+                db.UpdateJoinedData(user, joinedTable);
+                //db.Update(user);
             }
         }
     }

@@ -449,7 +449,7 @@ function serviceButtonHandler(event) {
                 input = $('#' + tableId + '-editModal').find('input[id=' + $(headers[i]).data("original-field-name") + ']');
                 input.attr("type", columnType !== 'date-time' ? columnType : "date");
                 if (columnType === 'number') {
-                    input.attr("step", "any")
+                    input.attr("step", "any");
                     text = text.replace(",", ".");
                     text = parseFloat(text);
                 }

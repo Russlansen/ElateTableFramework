@@ -11,46 +11,47 @@ namespace TestApplication.Controllers
 {
     public class HomeController : Controller
     {
+        private static TableConfiguration _autosConfig;
+        private static TableConfiguration _usersConfig;
+
         public ActionResult Index(int page = 1)
         {
             var autoRepos = new AutoRepository();
             var userRepos = new UserRepository();
 ;
-            var autoOptions = SetAutoOptions();
-            var userOptions = SetUserOptions();
+            _autosConfig = SetAutoOptions();
+            _usersConfig = SetUserOptions();
 
-            var autos = autoRepos.GetDataWithPagination(autoOptions.PaginationConfig, autoOptions.JoinTables);
-            var users = userRepos.GetDataWithPagination(userOptions.PaginationConfig, userOptions.JoinTables);
+            var autos = autoRepos.GetDataWithPagination(_autosConfig.PaginationConfig, _autosConfig.JoiningTable);
+            var users = userRepos.GetDataWithPagination(_usersConfig.PaginationConfig, _usersConfig.JoiningTable);
 
             ViewData["users"] = users;
 
-            ViewData["autoOptions"] = autoOptions;
-            ViewData["userOptions"] = userOptions;
+            ViewData["autoOptions"] = _autosConfig;
+            ViewData["userOptions"] = _usersConfig;
 
             return View(autos);
         }
 
-        public HtmlString PaginationAsync(PaginationConfig config)
+        public HtmlString PaginationAsync(ConditionsConfig config)
         {
             var repos = new AutoRepository();
-            var options = SetAutoOptions();
-            options.PaginationConfig = config;
+            _autosConfig.PaginationConfig = config;
 
-            var list = repos.GetDataWithPagination(config, options.JoinTables);
-            return TableHelper.ElateGetTableBody(list, options);
+            var list = repos.GetDataWithPagination(config, _autosConfig.JoiningTable);
+            return TableHelper.ElateGetTableBody(list, _autosConfig);
         }
 
-        public HtmlString PaginationUserAsync(PaginationConfig config)
+        public HtmlString PaginationUserAsync(ConditionsConfig config)
         {
             var repos = new UserRepository();
-            var options = SetUserOptions();
-            options.PaginationConfig = config;
+            _usersConfig.PaginationConfig = config;
 
-            var list = repos.GetDataWithPagination(config, options.JoinTables);
-            return TableHelper.ElateGetTableBody(list, options);
+            var list = repos.GetDataWithPagination(config, _usersConfig.JoiningTable);
+            return TableHelper.ElateGetTableBody(list, _usersConfig);
         }
 
-        public string Selection(PaginationConfig config)
+        public string Selection(ConditionsConfig config)
         {
             var repos = new AutoRepository();
             return repos.GetIndexerJsonArray(config, "Id");
@@ -68,7 +69,7 @@ namespace TestApplication.Controllers
             repos.Edit(auto);
         }
 
-        public string UserSelection(PaginationConfig config)
+        public string UserSelection(ConditionsConfig config)
         {
             var repos = new UserRepository();
             return repos.GetIndexerJsonArray(config, "id");
@@ -83,7 +84,7 @@ namespace TestApplication.Controllers
         public void UserEdit(User user)
         {
             var repos = new UserRepository();
-            repos.Edit(user);
+            repos.Edit(user, _usersConfig.JoiningTable);
         }
 
         private TableConfiguration SetAutoOptions()
@@ -92,7 +93,7 @@ namespace TestApplication.Controllers
             TableConfiguration options = new TableConfiguration("autos-table")
             {
                 ColorScheme = ColorScheme.Default,
-                PaginationConfig = new PaginationConfig()
+                PaginationConfig = new ConditionsConfig()
                 {
                     MaxItemsInPage = 10,
                     OrderType = OrderType.DESC,
@@ -134,10 +135,10 @@ namespace TestApplication.Controllers
                 {
                     { Tag.Table, "table table-bordered" },
                 },
-                //FieldsForCombobox = new Dictionary<string, string[]>()
-                //{
-                //    { "Model", repos.GetUniqueItems("Model").ToArray() }
-                //},
+                FieldsForCombobox = new Dictionary<string, string[]>()
+                {
+                    { "Model", repos.GetUniqueItems("Model").ToArray() }
+                }
                 //Merge = new Dictionary<string, string[]>()
                 //{
                 //    { "Test", new string[]{ "Id", "Year", "Model" } }
@@ -160,10 +161,11 @@ namespace TestApplication.Controllers
         private TableConfiguration SetUserOptions()
         {
             var repos = new UserRepository();
+            var repos2 = new AutoRepository();
             TableConfiguration options = new TableConfiguration("users-table")
             {
                 ColorScheme = ColorScheme.Blue,
-                PaginationConfig = new PaginationConfig()
+                PaginationConfig = new ConditionsConfig()
                 {
                     MaxItemsInPage = 10,
                     OrderType = OrderType.DESC,
@@ -185,7 +187,7 @@ namespace TestApplication.Controllers
                     {
                         new EditButton("Edit", "Home", "UserEdit")
                         {
-                            NonEditableColumns = new List<string>(){ "Id", "Age" }
+                            NonEditableColumns = new List<string>(){ "Id", "Age", "Model", "Price" }
                         },
                         new DeleteButton("Delete", "Home", "UserDelete")
                         {
@@ -194,13 +196,10 @@ namespace TestApplication.Controllers
                     },
 
                 },
-                JoinTables = new List<TypeJoinConfiguration>
+                JoiningTable = new TypeJoinConfiguration<Auto>()
                 {
-                    new TypeJoinConfiguration(typeof(Auto))
-                    {
-                        JoinedFields = new List<string>(){ "Model", "Price" },
-                        JoinOnFieldPair = new KeyValuePair<string, string>("ModelId", "Id")
-                    }
+                    JoinedFields = new List<string>() { "Model", "Price" }
+                    //JoinOnFieldsPair = new KeyValuePair<string, string>("AutoId", "Id")
                 },
                 ColumnWidthInPercent = new Dictionary<string, byte>()
                 {
@@ -212,12 +211,18 @@ namespace TestApplication.Controllers
                 },
                 Exclude = new List<string>()
                 {
-                    "ModelId"
+                    "AutoId"
                 },
                 FieldsForCombobox = new Dictionary<string, string[]>()
                 {
-                    { "Name", repos.GetUniqueItems("Name").ToArray() }
+                    { "Name", repos.GetUniqueItems("Name").ToArray() },
+                    { "Model", repos2.GetUniqueItems("Model").ToArray() }
                 },
+                ColumnFormat = new Dictionary<string, string>()
+                {
+                    { "Date","dd.MM.yyyy"},
+                    { "Price", "0.00$" }
+                }
                 //Merge = new Dictionary<string, string[]>()
                 //{
                 //    { "Test", new string[]{ "Id", "Year", "Model" } }
@@ -281,7 +286,7 @@ namespace TestApplication.Controllers
                     Name = names[rnd.Next(names.Length)],
                     LastName = lastNames[rnd.Next(lastNames.Length)],
                     Age = rnd.Next(18, 99),
-                    ModelId = rnd.Next(1, 100)
+                    AutoId = rnd.Next(1, 100)
                 };
 
                 userRepos.AddUser(user);
